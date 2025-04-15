@@ -1,22 +1,13 @@
 import { Request, Response } from 'express';
 import { generateStructuredContent } from '../services/GeminiService'; // Adjust path
-// Import Mapping Service later when ready: import * as MappingService from '../services/MappingService';
-
-// Define the expected structure of an ingredient from Gemini's JSON output
-interface GeminiIngredient {
-    name: string;
-    quantity: {
-        value: string;
-        unit: string;
-    };
-}
+import * as MappingService from '../services/MappingService'; // Import Mapping Service
+import { ParsedIngredient, MappingResult } from '../types/mapping'; // Import types
 
 // Define the expected overall JSON structure from Gemini
 interface GeminiRecipeResponse {
-    ingredients: GeminiIngredient[];
+    ingredients: ParsedIngredient[];
     recipeSteps: string[];
 }
-
 
 /**
  * Constructs the prompt for Gemini to extract ingredients and steps.
@@ -52,7 +43,7 @@ Now, provide the JSON output for "${recipeName}" for ${servings} servings.
 };
 
 /**
- * Processes a recipe request: calls Gemini (JSON mode), validates response, and eventually maps them.
+ * Processes a recipe request: calls Gemini, maps ingredients, returns combined result.
  */
 export const processRecipe = async (req: Request, res: Response): Promise<void> => {
     const { recipeName, servings } = req.body;
@@ -72,56 +63,41 @@ export const processRecipe = async (req: Request, res: Response): Promise<void> 
         // 1. Build the prompt
         const prompt = buildGeminiPrompt(recipeName, numServings);
 
-        // 2. Call Gemini Service (expecting parsed JSON directly)
-        // The service function now handles the JSON parsing internally
+        // 2. Call Gemini Service
         const jsonResponse: GeminiRecipeResponse = await generateStructuredContent(prompt);
 
-        // 3. Validate the received JSON structure (even though model should adhere)
-        let parsedIngredients: GeminiIngredient[] = [];
+        // 3. Validate the received JSON structure
+        let parsedIngredients: ParsedIngredient[] = [];
         let parsedSteps: string[] = [];
         if (jsonResponse && Array.isArray(jsonResponse.ingredients) && Array.isArray(jsonResponse.recipeSteps)) {
-             // Basic filtering of potentially malformed items (belt-and-suspenders check)
+             // Validate/filter ingredients
              parsedIngredients = jsonResponse.ingredients.filter(item =>
                item && typeof item.name === 'string' &&
-               item.quantity && typeof item.quantity.value === 'string' && // Check for string value
+               item.quantity && typeof item.quantity.value === 'string' &&
                typeof item.quantity.unit === 'string'
              );
-             // Validate/filter steps (ensure they are strings)
+             // Validate/filter steps
              parsedSteps = jsonResponse.recipeSteps.filter(step => typeof step === 'string' && step.trim().length > 0);
         } else {
              console.error("Received data from Gemini service, but it doesn't match expected structure:", jsonResponse);
              throw new Error('AI service returned data in an unexpected format.');
         }
 
-        // --- TODO: Integrate Mapping Service (Step 7 & 8) ---
-        // const mappingResult = await MappingService.mapIngredientsToProps(parsedIngredients);
-        // res.status(200).json(mappingResult);
-        // ------------------------------------------------------
+        // 4. Call Mapping Service
+        console.log(`Mapping ${parsedIngredients.length} ingredients...`);
+        const mappingResult: MappingResult = await MappingService.mapIngredientsToProps(parsedIngredients);
+        console.log(`Mapping complete: ${mappingResult.matchedItems.length} matched, ${mappingResult.unavailableItems.length} unavailable.`);
 
-        // --- For now (Step 6): Return the parsed ingredients AND steps ---
-        if (parsedIngredients.length === 0 && jsonResponse.ingredients.length > 0) {
-            console.warn("Gemini returned ingredients, but they failed validation:", jsonResponse.ingredients);
-            // Still return steps if they are valid, but indicate ingredient issue
-            res.status(500).json({ message: "AI returned ingredients in an unexpected format.", ingredients: [], recipeSteps: parsedSteps });
-            return;
-        } else if (parsedIngredients.length === 0) {
-            console.warn("AI processed the recipe but found no valid ingredients.");
-             // Still return steps if they are valid
-            res.status(200).json({ message: "AI processed the recipe but found no valid ingredients.", ingredients: [], recipeSteps: parsedSteps });
-            return;
-        }
-        // Also check if steps are missing after filtering, if needed
-        if (parsedSteps.length === 0 && jsonResponse.recipeSteps.length > 0) {
-             console.warn("AI returned steps, but they failed validation/filtering:", jsonResponse.recipeSteps);
-             // Return ingredients, but indicate step issue (or handle as needed)
-        } else if (parsedSteps.length === 0) {
-             console.warn("AI processed the recipe but found no valid steps.");
-        }
+        // 5. Combine results and send response
+        const finalResponse = {
+            recipeName: recipeName, // Include original request info for context
+            servings: numServings,
+            ...mappingResult, // Includes matchedItems and unavailableItems
+            recipeSteps: parsedSteps
+        };
 
-       // Send back both ingredients and steps
-       res.status(200).json({ ingredients: parsedIngredients, recipeSteps: parsedSteps });
-       // -------------------------------------------------------------
-
+        res.status(200).json(finalResponse);
+        // ---------------------------------------------------------
     } catch (error: unknown) {
         console.error('Recipe Processing Error:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
