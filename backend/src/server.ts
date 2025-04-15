@@ -5,6 +5,7 @@ import connectDB from './config/database';
 import authRoutes from './routes/AuthRoutes';
 import productRoutes from './routes/ProductRoutes';
 import seedDatabase from './utils/seedDatabase';
+import recipeRoutes from './routes/RecipeRoutes';
 
 // For env File
 dotenv.config();
@@ -29,6 +30,7 @@ app.get('/', (req: Request, res: Response) => {
 // Use API Routes
 app.use('/api/auth', authRoutes); // Mount auth routes under /api/auth prefix
 app.use('/api/products', productRoutes); // Mount product routes
+app.use('/api/recipes', recipeRoutes); // Mount recipe routes
 
 app.listen(port, () => {
   console.log(`Server is Fire at http://localhost:${port}`);
