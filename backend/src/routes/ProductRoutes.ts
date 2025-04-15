@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as ProductController from '../controllers/ProductController'; // Adjust path
-// TODO: Import authMiddleware later to protect routes like create, update, delete
+import { protect } from '../middleware/authMiddleware';
 
 const router = Router();
 
@@ -21,18 +21,18 @@ router.get('/:id', ProductController.getById);
 
 // @route   POST api/products
 // @desc    Create a new product
-// @access  Private (TODO: Add authMiddleware)
-router.post('/', /* authMiddleware, isAdminMiddleware?, */ ProductController.create);
+// @access  Private
+router.post('/', protect, /* isAdmin?, */ ProductController.create);
 
 // @route   PUT api/products/:id
 // @desc    Update a product
-// @access  Private (TODO: Add authMiddleware)
-router.put('/:id', /* authMiddleware, isAdminMiddleware?, */ ProductController.update);
+// @access  Private
+router.put('/:id', protect, /* isAdmin?, */ ProductController.update);
 
 // @route   DELETE api/products/:id
 // @desc    Delete a product
-// @access  Private (TODO: Add authMiddleware)
-router.delete('/:id', /* authMiddleware, isAdminMiddleware?, */ ProductController.remove);
+// @access  Private 
+router.delete('/:id', protect, /* isAdmin?, */  ProductController.remove);
 
 
 export default router;
