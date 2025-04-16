@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 // Interface for the Product document
 export interface IProduct extends Document {
+  _id: mongoose.Schema.Types.ObjectId;
   name: string;
   description?: string;
   category: string;
