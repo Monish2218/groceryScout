@@ -1,11 +1,16 @@
-"use client"
+import type React from "react"
 
-import { useState, type FormEvent } from "react"
+import { useState } from "react"
 import { Link } from "react-router-dom"
-import { Mail, Lock, User, Loader2 } from "lucide-react"
+import { Mail, Lock, User } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 
 interface RegisterPageProps {
-  readonly onSubmit?: (name: string, email: string, password: string) => void
+  readonly onSubmit: (name: string, email: string, password: string) => void
   readonly isLoading?: boolean
 }
 
@@ -13,124 +18,144 @@ export default function RegisterPage({ onSubmit, isLoading = false }: RegisterPa
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setError("") // Clear any previous errors
+    setError(null)
 
-    if (onSubmit) {
-      onSubmit(name, email, password)
-    } else {
-      // Placeholder functionality when no onSubmit is provided
-      console.log("Registration submitted:", { name, email, password })
-      // Simulate an error for demonstration
-      if (email === "taken@example.com") {
-        setError("This email is already registered. Please use a different email or sign in.")
-      }
+    if (!name || !email || !password || !confirmPassword) {
+      setError("Please fill in all fields")
+      return
     }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match")
+      return
+    }
+
+    onSubmit(name, email, password)
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 p-4">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Create your GroceryScout account</h1>
-          <p className="mt-2 text-gray-600">
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 p-4">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Create your GroceryScout account</CardTitle>
+          <CardDescription className="text-center">
             Already have an account?{" "}
             <Link to="/login" className="text-green-600 hover:text-green-700 font-medium">
               Sign in
             </Link>
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-1">
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-              Full Name
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-gray-400" />
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Full Name</Label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
+                  <User size={18} />
+                </div>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="John Doe"
+                  className="pl-10 focus:ring-green-500 focus:border-green-500"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
               </div>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                placeholder="John Doe"
-              />
             </div>
-          </div>
 
-          <div className="space-y-1">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email address
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-gray-400" />
+            <div className="space-y-2">
+              <Label htmlFor="email">Email address</Label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
+                  <Mail size={18} />
+                </div>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  className="pl-10 focus:ring-green-500 focus:border-green-500"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
               </div>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                placeholder="you@example.com"
-              />
             </div>
-          </div>
 
-          <div className="space-y-1">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-gray-400" />
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
+                  <Lock size={18} />
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  className="pl-10 focus:ring-green-500 focus:border-green-500"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
               </div>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                placeholder="••••••••"
-              />
             </div>
-          </div>
 
-          {error && <div className="text-red-600 text-sm font-medium bg-red-50 p-3 rounded-md">{error}</div>}
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
+                  <Lock size={18} />
+                </div>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  className="pl-10 focus:ring-green-500 focus:border-green-500"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-60"
-            >
+            {error && <div className="text-red-500 text-sm font-medium p-2 bg-red-50 rounded-md">{error}</div>}
+
+            <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={isLoading}>
               {isLoading ? (
                 <>
-                  <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
                   Creating account...
                 </>
               ) : (
                 "Create Account"
               )}
-            </button>
-          </div>
-        </form>
-      </div>
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 }
