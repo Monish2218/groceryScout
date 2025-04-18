@@ -1,15 +1,12 @@
 import { Request, Response } from 'express';
-import * as ProductService from '../services/ProductService'; // Adjust path
+import * as ProductService from '../services/ProductService';
 
-// Create a new product
 export const create = async (req: Request, res: Response): Promise<void> => {
   try {
-    // TODO: Add validation for request body
     const product = await ProductService.createProduct(req.body);
     res.status(201).json(product);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    // Mongoose validation errors often have specific structures
     if (error instanceof Error && error.name === 'ValidationError') {
          res.status(400).json({ message: 'Validation Error', errors: errorMessage });
     } else {
@@ -19,12 +16,10 @@ export const create = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// Get all products (with optional query params for filtering/pagination)
 export const getAll = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
-    // Pass other query params (like category, brand) directly to the service
     const query = req.query;
 
     const result = await ProductService.getAllProducts(query, page, limit);
@@ -36,7 +31,6 @@ export const getAll = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// Get a single product by ID
 export const getById = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id;
@@ -49,7 +43,6 @@ export const getById = async (req: Request, res: Response): Promise<void> => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     console.error('Get Product By ID Error:', error);
-     // Handle potential 'Invalid ID format' errors if thrown by service
      if (errorMessage === 'Invalid product ID format') {
          res.status(400).json({ message: errorMessage });
      } else {
@@ -58,11 +51,9 @@ export const getById = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// Update a product
 export const update = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id;
-    // TODO: Add validation for request body
     const product = await ProductService.updateProduct(id, req.body);
     if (!product) {
       res.status(404).json({ message: 'Product not found' });
@@ -71,7 +62,6 @@ export const update = async (req: Request, res: Response): Promise<void> => {
     res.status(200).json(product);
   } catch (error: unknown) {
      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-     // Handle potential 'Invalid ID format' errors if thrown by service
      if (errorMessage === 'Invalid product ID format') {
          res.status(400).json({ message: errorMessage });
      } else if (error instanceof Error && error.name === 'ValidationError') {
@@ -84,7 +74,6 @@ export const update = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// Delete a product
 export const remove = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id;
@@ -93,10 +82,9 @@ export const remove = async (req: Request, res: Response): Promise<void> => {
       res.status(404).json({ message: 'Product not found' });
       return;
     }
-    res.status(200).json({ message: 'Product deleted successfully', product }); // Or just status 204 No Content
+    res.status(200).json({ message: 'Product deleted successfully', product });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-     // Handle potential 'Invalid ID format' errors if thrown by service
      if (errorMessage === 'Invalid product ID format') {
          res.status(400).json({ message: errorMessage });
      } else {
@@ -106,24 +94,23 @@ export const remove = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// Search products
 export const search = async (req: Request, res: Response): Promise<void> => {
     try {
-        const searchTerm = req.query.q as string; // Expecting search term in query param 'q'
-        const page = parseInt(req.query.page as string) || 1;
-        const limit = parseInt(req.query.limit as string) || 10;
+      const searchTerm = req.query.q as string;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
 
-        if (!searchTerm) {
-            res.status(400).json({ message: 'Search term (q) is required' });
-            return;
-        }
+      if (!searchTerm) {
+        res.status(400).json({ message: 'Search term (q) is required' });
+        return;
+      }
 
-        const results = await ProductService.searchProducts(searchTerm, page, limit);
-        res.status(200).json(results);
+      const results = await ProductService.searchProducts(searchTerm, page, limit);
+      res.status(200).json(results);
 
     } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-        console.error('Search Products Error:', error);
-        res.status(500).json({ message: 'Server error searching products', error: errorMessage });
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      console.error('Search Products Error:', error);
+      res.status(500).json({ message: 'Server error searching products', error: errorMessage });
     }
 }

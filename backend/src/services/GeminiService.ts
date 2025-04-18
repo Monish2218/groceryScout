@@ -2,75 +2,62 @@ import { GoogleGenAI, HarmCategory, HarmBlockThreshold, Type } from '@google/gen
 import dotenv from 'dotenv';
 
 dotenv.config();
-
 const API_KEY = process.env.GEMINI_API_KEY;
-
 if (!API_KEY) {
     throw new Error('FATAL ERROR: GEMINI_API_KEY is not defined.');
 }
 
 const ai = new GoogleGenAI({apiKey: API_KEY});
-
-// --- Configuration for the Generative Model ---
-
-// Model Name (adjust if needed, check Google AI Studio for available models)
-const MODEL_NAME = "gemini-2.0-flash"; // Or "gemini-pro" etc.
-
-// Safety Settings (Adjust as needed)
-// Blocks content above a certain harm probability threshold.
+const MODEL_NAME = "gemini-2.0-flash";
 const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
     { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
     { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
 ];
-
 const responseSchema = {
-    type: Type.OBJECT,
-    properties: {
-      ingredients: {
-        type: Type.ARRAY,
-        description: "List of ingredients with quantities.",
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            name: {
-              type: Type.STRING,
-              description: "Name of the ingredient (e.g., All-Purpose Flour, Red Onion)",
-            },
-            quantity: {
-              type: Type.OBJECT,
-              description: "Quantity required.",
-              properties: {
-                value: {
-                  // Using string to handle numbers OR text like "a pinch" robustly
-                  type: Type.STRING,
-                  description: "Amount of the ingredient (e.g., '200', '1', '0.5', 'a pinch'). Represent numbers as strings.",
-                },
-                unit: {
-                  type: Type.STRING,
-                  description: "Unit of measurement (e.g., 'g', 'ml', 'kg', 'l', 'piece', 'tsp', 'tbsp', 'pinch', 'dash')",
-                },
-              },
-              required: ["value", "unit"],
-            },
-          },
-          required: ["name", "quantity"],
-        },
-      },
-      recipeSteps: {
-        type: Type.ARRAY,
-        description: "Step-by-step instructions to prepare the recipe.",
-        items: {
+  type: Type.OBJECT,
+  properties: {
+    ingredients: {
+      type: Type.ARRAY,
+      description: "List of ingredients with quantities.",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: {
             type: Type.STRING,
-            description: "A single step in the recipe instructions.",
-        }
-    }
+            description: "Name of the ingredient (e.g., All-Purpose Flour, Red Onion)",
+          },
+          quantity: {
+            type: Type.OBJECT,
+            description: "Quantity required.",
+            properties: {
+              value: {
+                type: Type.STRING,
+                description: "Amount of the ingredient (e.g., '200', '1', '0.5', 'a pinch'). Represent numbers as strings.",
+              },
+              unit: {
+                type: Type.STRING,
+                description: "Unit of measurement (e.g., 'g', 'ml', 'kg', 'l', 'piece', 'tsp', 'tbsp', 'pinch', 'dash')",
+              },
+            },
+            required: ["value", "unit"],
+          },
+        },
+        required: ["name", "quantity"],
+      },
     },
-    required: ["ingredients", "recipeSteps"],
-  };
-
-// --- Service Function ---
+    recipeSteps: {
+      type: Type.ARRAY,
+      description: "Step-by-step instructions to prepare the recipe.",
+      items: {
+        type: Type.STRING,
+        description: "A single step in the recipe instructions.",
+      }
+    }
+  },
+  required: ["ingredients", "recipeSteps"],
+};
 
 /**
  * Generates content using the configured Gemini model.
@@ -80,69 +67,57 @@ const responseSchema = {
  * @throws Error if API call fails or response is blocked/empty.
  */
 export const generateStructuredContent = async (prompt: string): Promise<any> => {
-    try {
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: prompt,
+      config: {
+        candidateCount: 1,
+        temperature: 0.3,
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json",
+        responseSchema: responseSchema,
+        safetySettings: safetySettings,
+      }
+    });
 
-        const response = await ai.models.generateContent({
-            model: MODEL_NAME,
-            contents: prompt,
-            config: {
-                candidateCount: 1,
-                temperature: 0.3,
-                maxOutputTokens: 4096,
-                responseMimeType: "application/json",
-                responseSchema: responseSchema, // Use the defined schema for validation
-                safetySettings: safetySettings, // Apply safety settings
-            }
-        });
-
-        console.log("Response from Gemini: ", response.text);
-        if (response.candidates && response.candidates.length > 0) {
-            console.log("Finish reason:", response.candidates[0].finishReason);
-            console.log("Safety ratings:", response.candidates[0].safetyRatings);
-        }
-
-        // Basic checks on the response
-        if (!response) {
-             throw new Error('Gemini API call failed: No response received.');
-        }
-
-        // Log safety ratings if needed for debugging
-        // console.log("Safety Ratings:", response.promptFeedback?.safetyRatings);
-
-        if (response.promptFeedback?.blockReason) {
-             throw new Error(`Gemini API call blocked: ${response.promptFeedback.blockReason}`);
-        }
-
-        const jsonText = response.text;
-
-        if (!jsonText) {
-          console.error("Gemini response finished OK but returned empty text in JSON mode. Check API response structure.", response);
-          throw new Error('Gemini API call failed: Empty JSON response text.');
-        }
-
-        console.log("Received JSON text length from Gemini:", jsonText.length);
-
-        // Parse the JSON text - SDK might do this implicitly, but explicit parse is safer
-        try {
-          const parsedJson = JSON.parse(jsonText);
-          // Basic validation: Check if required fields exist
-          if (!parsedJson.ingredients || !parsedJson.recipeSteps) {
-            console.error("Parsed JSON missing required fields (ingredients or recipeSteps):", parsedJson);
-            throw new Error("AI response JSON missing required fields.");
-        }
-          return parsedJson;
-        } catch (parseError) {
-            console.error("Error parsing JSON response from Gemini:", parseError);
-            console.error("Raw JSON text was:", jsonText);
-            throw new Error(`Failed to parse JSON response from AI. ${parseError instanceof Error ? parseError.message : ''}`);
-        }
-
-    } catch (error: unknown) {
-        console.error("Error calling Gemini API (JSON Mode):", error);
-        if (error instanceof Error) {
-            // Re-throw specific errors or a generic one
-            throw new Error(`Gemini API Error: ${error.message}`);
-        }
-        throw new Error('An unknown error occurred while calling the Gemini API.');
+    console.log("Response from Gemini: ", response.text);
+    if (response.candidates && response.candidates.length > 0) {
+      console.log("Finish reason:", response.candidates[0].finishReason);
+      console.log("Safety ratings:", response.candidates[0].safetyRatings);
     }
+
+    if (!response) {
+      throw new Error('Gemini API call failed: No response received.');
+    }
+    if (response.promptFeedback?.blockReason) {
+      throw new Error(`Gemini API call blocked: ${response.promptFeedback.blockReason}`);
+    }
+
+    const jsonText = response.text;
+    if (!jsonText) {
+      console.error("Gemini response finished OK but returned empty text in JSON mode. Check API response structure.", response);
+      throw new Error('Gemini API call failed: Empty JSON response text.');
+    }
+    console.log("Received JSON text length from Gemini:", jsonText.length);
+
+    try {
+      const parsedJson = JSON.parse(jsonText);
+      if (!parsedJson.ingredients || !parsedJson.recipeSteps) {
+        console.error("Parsed JSON missing required fields (ingredients or recipeSteps):", parsedJson);
+        throw new Error("AI response JSON missing required fields.");
+      }
+      return parsedJson;
+    } catch (parseError) {
+      console.error("Error parsing JSON response from Gemini:", parseError);
+      console.error("Raw JSON text was:", jsonText);
+      throw new Error(`Failed to parse JSON response from AI. ${parseError instanceof Error ? parseError.message : ''}`);
+    }
+  } catch (error: unknown) {
+    console.error("Error calling Gemini API (JSON Mode):", error);
+    if (error instanceof Error) {
+      throw new Error(`Gemini API Error: ${error.message}`);
+    }
+    throw new Error('An unknown error occurred while calling the Gemini API.');
+  }
 };

@@ -1,4 +1,4 @@
-import Product, { IProduct } from '../models/Product'; // Adjust path
+import Product, { IProduct } from '../models/Product';
 
 /**
  * Create a new product.
@@ -24,7 +24,6 @@ export const getAllProducts = async (
     limit: number = 10
 ): Promise<{ products: IProduct[], total: number, page: number, pages: number }> => {
     const skip = (page - 1) * limit;
-    // Basic filtering (can be expanded)
     const filter: any = {};
     if (query.category) {
         filter.category = query.category;
@@ -32,10 +31,9 @@ export const getAllProducts = async (
     if (query.brand) {
         filter.brand = query.brand;
     }
-    // Add more filters as needed (price range, inStock, etc.)
 
     const products = await Product.find(filter)
-        .sort({ createdAt: -1 }) // Sort by newest first (optional)
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
 
@@ -55,9 +53,8 @@ export const getAllProducts = async (
  * @returns The product or null if not found.
  */
 export const getProductById = async (id: string): Promise<IProduct | null> => {
-    // Check if the ID is a valid MongoDB ObjectId
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-        return null; // Or throw an error: throw new Error('Invalid product ID format');
+        return null;
     }
     return Product.findById(id);
 };
@@ -73,9 +70,6 @@ export const updateProduct = async (id: string, updateData: Partial<IProduct>): 
      if (!id.match(/^[0-9a-fA-F]{24}$/)) {
         return null;
     }
-    // Find by ID and update, return the new document
-    // { new: true } returns the document after update
-    // { runValidators: true } ensures updates adhere to schema validation
     return Product.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
 };
 
@@ -108,18 +102,15 @@ export const searchProducts = async (
 
     const products = await Product.find(
             filter,
-            { score: { $meta: "textScore" } } // Include relevance score
+            { score: { $meta: "textScore" } }
         )
-        .sort({ score: { $meta: "textScore" } }) // Sort by relevance
+        .sort({ score: { $meta: "textScore" } })
         .skip(skip)
         .limit(limit);
 
-    // Count documents matching the text search (may be less accurate/performant than finding all and counting)
-    // A separate count might be needed if exact total is critical for pagination display.
-    // For simplicity here, we'll count based on the filter which works well.
     const total = await Product.countDocuments(filter);
 
-     return {
+    return {
         products,
         total,
         page,

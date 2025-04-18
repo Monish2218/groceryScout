@@ -1,5 +1,5 @@
-// In server.ts, after connectDB() (FOR DEV ONLY)
 import Product from '../models/Product';
+
 const seedDatabase = async () => {
   try {
     const productCount = await Product.countDocuments();
@@ -22,4 +22,4 @@ const seedDatabase = async () => {
     console.error('Error seeding database:', error);
   }
 };
-export default seedDatabase; // export the function
+export default seedDatabase;

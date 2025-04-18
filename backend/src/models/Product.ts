@@ -1,6 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-// Interface for the Product document
 export interface IProduct extends Document {
   _id: mongoose.Schema.Types.ObjectId;
   name: string;
@@ -12,14 +11,10 @@ export interface IProduct extends Document {
   unit: 'g' | 'kg' | 'ml' | 'l' | 'piece' | 'pack';
   unitQuantity: number;
   imageUrl?: string;
-  // Optional stock management fields
-  // inStock: boolean;
-  // stockCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Mongoose Schema
 const productSchema: Schema<IProduct> = new Schema(
   {
     name: {
@@ -44,9 +39,8 @@ const productSchema: Schema<IProduct> = new Schema(
       index: true,
     },
     tags: {
-      type: [String], // Array of strings
-      index: true, // Index tags for faster searching/mapping
-      // Convert tags to lowercase before saving (optional but good for consistency)
+      type: [String],
+      index: true,
       set: (tags: string[]) => tags.map(tag => tag.toLowerCase().trim()),
     },
     price: {
@@ -65,25 +59,18 @@ const productSchema: Schema<IProduct> = new Schema(
     unitQuantity: {
       type: Number,
       required: [true, 'Unit quantity is required (e.g., 200 for grams, 1 for piece/pack)'],
-      min: [0.1, 'Unit quantity must be positive'], // Allow fractional for kg/l if needed, adjust min as necessary
+      min: [0.1, 'Unit quantity must be positive'],
       default: 1,
     },
     imageUrl: {
       type: String,
-      // Basic URL validation (optional)
-      // match: [/^(http|https):\/\/[^ "]+$/, 'Invalid URL format']
     },
-    // Optional stock management
-    // inStock: { type: Boolean, default: true },
-    // stockCount: { type: Number, default: 0, min: 0 },
   },
   {
-    timestamps: true, // Adds createdAt and updatedAt
+    timestamps: true,
   }
 );
 
-// Create a text index for searching across multiple fields
-// This helps with the manual search functionality later
 productSchema.index({
     name: 'text',
     description: 'text',
@@ -91,16 +78,15 @@ productSchema.index({
     brand: 'text',
     tags: 'text'
 }, {
-    weights: { // Optional: Give more weight to certain fields in search results
+    weights: {
         name: 10,
         tags: 5,
         brand: 3,
         category: 2,
         description: 1
     },
-    name: "ProductTextIndex" // Name the index
+    name: "ProductTextIndex"
 });
 
-// Create and export the Product model
 const Product = mongoose.model<IProduct>('Product', productSchema);
 export default Product;
