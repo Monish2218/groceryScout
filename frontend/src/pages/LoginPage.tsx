@@ -1,25 +1,21 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, Navigate } from "react-router-dom"
 import { Mail, Lock } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { useAuth } from "@/context/AuthContext"
 
-interface LoginPageProps {
-  readonly onSubmit: (email: string, password: string) => void
-  readonly isLoading?: boolean
-}
-
-export default function LoginPage({ onSubmit, isLoading = false }: LoginPageProps) {
+export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
+  const {login, isLoading, error, setError, isAuthenticated} = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
@@ -28,8 +24,12 @@ export default function LoginPage({ onSubmit, isLoading = false }: LoginPageProp
       return
     }
 
-    onSubmit(email, password)
+    login({email, password})
   }
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+}
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 p-4">

@@ -1,25 +1,21 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, Navigate } from "react-router-dom"
 import { Mail, Lock, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { useAuth } from "@/context/AuthContext"
 
-interface RegisterPageProps {
-  readonly onSubmit: (name: string, email: string, password: string) => void
-  readonly isLoading?: boolean
-}
-
-export default function RegisterPage({ onSubmit, isLoading = false }: RegisterPageProps) {
+export default function RegisterPage() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
+  const { register, isLoading, error, setError, isAuthenticated } = useAuth();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,7 +31,11 @@ export default function RegisterPage({ onSubmit, isLoading = false }: RegisterPa
       return
     }
 
-    onSubmit(name, email, password)
+    register({name, email, password})
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
   }
 
   return (

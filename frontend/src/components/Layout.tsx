@@ -3,16 +3,12 @@ import { Link, NavLink, Outlet } from "react-router-dom"
 import { Menu, ShoppingCart, User, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { useAuth } from "@/context/AuthContext"
 
 export default function Layout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { isAuthenticated, user, logout } = useAuth();
   const currentYear = new Date().getFullYear()
-
-  const navItems = [
-    { name: "Home", path: "/" },
-    { name: "Products", path: "/products" },
-    { name: "My Orders", path: "/orders" },
-  ]
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -33,36 +29,79 @@ export default function Layout() {
           {/* Center - Navigation (desktop only) */}
           <nav className="hidden md:block">
             <ul className="flex space-x-8">
-              {navItems.map((item) => (
-                <li key={item.path}>
+              <li>
+                <NavLink 
+                  to="/"
+                  className={({ isActive }) =>
+                    `text-sm font-medium transition-colors hover:text-white/90 ${
+                      isActive ? "text-white" : "text-white/70"
+                    }`
+                  }
+                >
+                  Home
+                </NavLink>
+              </li>
+              <li>
+                <NavLink 
+                  to="/products"
+                  className={({ isActive }) =>
+                    `text-sm font-medium transition-colors hover:text-white/90 ${
+                      isActive ? "text-white" : "text-white/70"
+                    }`
+                  }
+                >
+                  Products
+                </NavLink>
+              </li>
+              {isAuthenticated && 
+                <li>
                   <NavLink
-                    to={item.path}
+                    to="/orders"
                     className={({ isActive }) =>
                       `text-sm font-medium transition-colors hover:text-white/90 ${
                         isActive ? "text-white" : "text-white/70"
                       }`
                     }
                   >
-                    {item.name}
+                    My Orders
                   </NavLink>
                 </li>
-              ))}
+              }
             </ul>
           </nav>
 
           {/* Right - Auth & Cart */}
           <div className="flex items-center space-x-4">
             <div className="hidden md:flex md:items-center md:space-x-4">
-              <Button variant="ghost" size="sm" className="text-white hover:bg-emerald-700 hover:text-white">
-                <User className="mr-2 h-4 w-4" />
-                Login
-              </Button>
-              <Link to="/cart">
-                <Button variant="ghost" size="sm" className="text-white hover:bg-emerald-700 hover:text-white">
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  Cart
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <>
+                  <span>Welcome, {user?.name}!</span>
+                  <Button variant="ghost" size="sm" className="text-white bg-red-500 rounded hover:bg-red-600 hover:text-white" onClick={logout}>
+                    Logout
+                  </Button>
+                  <Link to="/cart">
+                    <Button variant="ghost" size="sm" className="text-white hover:bg-emerald-700 hover:text-white">
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      Cart
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/login">
+                    <Button variant="ghost" size="sm" className="text-white hover:bg-emerald-700 hover:text-white" >
+                      <User className="mr-2 h-4 w-4" />
+                      Login
+                    </Button>
+                  </Link>
+                  <Link to="/register">
+                    <Button variant="ghost" size="sm" className="text-white hover:bg-emerald-700 hover:text-white" >
+                      <User className="mr-2 h-4 w-4" />
+                      Register
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -84,10 +123,36 @@ export default function Layout() {
                   </div>
                   <nav className="flex-1 py-4">
                     <ul className="space-y-4">
-                      {navItems.map((item) => (
-                        <li key={item.path}>
+                      <li>
+                        <NavLink
+                          to="/"
+                          className={({ isActive }) =>
+                            `block py-2 text-base font-medium ${
+                              isActive ? "text-emerald-600" : "text-gray-600 hover:text-emerald-600"
+                            }`
+                          }
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          Home
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink
+                          to="/products"
+                          className={({ isActive }) =>
+                            `block py-2 text-base font-medium ${
+                              isActive ? "text-emerald-600" : "text-gray-600 hover:text-emerald-600"
+                            }`
+                          }
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          Products
+                        </NavLink>
+                      </li>
+                      {isAuthenticated && 
+                        <li>
                           <NavLink
-                            to={item.path}
+                            to="/orders"
                             className={({ isActive }) =>
                               `block py-2 text-base font-medium ${
                                 isActive ? "text-emerald-600" : "text-gray-600 hover:text-emerald-600"
@@ -95,23 +160,42 @@ export default function Layout() {
                             }
                             onClick={() => setIsMenuOpen(false)}
                           >
-                            {item.name}
+                            My Orders
                           </NavLink>
                         </li>
-                      ))}
+                      }`
                     </ul>
                   </nav>
                   <div className="border-t pt-4">
-                    <Button variant="outline" size="sm" className="w-full justify-start">
-                      <User className="mr-2 h-4 w-4" />
-                      Login
-                    </Button>
-                    <Link to="/cart" className="mt-2 block">
-                      <Button variant="outline" size="sm" className="w-full justify-start">
-                        <ShoppingCart className="mr-2 h-4 w-4" />
-                        Cart
-                      </Button>
-                    </Link>
+                    {isAuthenticated ? (
+                      <>
+                        <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => {setIsMenuOpen(false); logout();}}>
+                          <User className="mr-2 h-4 w-4" />
+                          Logout
+                        </Button>
+                        <Link to="/cart" className="mt-2 block">
+                          <Button variant="outline" size="sm" className="w-full justify-start">
+                            <ShoppingCart className="mr-2 h-4 w-4" />
+                            Cart
+                          </Button>
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        <Link to="/login">
+                          <Button variant="outline" size="sm" className="w-full justify-start">
+                            <User className="mr-2 h-4 w-4" />
+                            Login
+                          </Button>
+                        </Link>
+                        <Link to="/register">
+                          <Button variant="outline" size="sm" className="w-full justify-start">
+                            <User className="mr-2 h-4 w-4" />
+                            Register
+                          </Button>
+                        </Link>
+                      </>
+                    )}
                   </div>
                 </div>
               </SheetContent>
