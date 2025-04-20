@@ -11,8 +11,8 @@ import axiosInstance from '../api/axiosInstance';
 import { useAuth } from './AuthContext'; // To check if user is logged in
 
 // Define the structure of a cart item (matching backend CartItem schema)
-interface CartItem {
-    productId: { _id: string; name: string; /* other product fields if needed */ }; // Populate product ID at least
+export interface CartItem {
+    productId: string, // Populate product ID at least
     name: string;
     imageUrl?: string;
     quantity: number;
@@ -41,7 +41,9 @@ interface CartContextType {
     cartError: string | null;
     fetchCart: () => Promise<void>;
     addToCart: (productId: string, quantity: number) => Promise<boolean>; // Returns success status
-    // Add updateItemQuantity, removeItem, clearCart later
+    updateItemQuantity: (productId: string, newQuantity: number) => Promise<boolean>;
+    removeItem: (productId: string) => Promise<boolean>;
+    clearCart: () => Promise<boolean>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -121,11 +123,63 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         }
     };
 
-    // --- TODO: Implement other cart actions ---
-    // const updateItemQuantity = async (...) => { ... await fetchCart(); ... }
-    // const removeItem = async (...) => { ... await fetchCart(); ... }
-    // const clearCart = async (...) => { ... await fetchCart(); ... }
-    // -----------------------------------------
+    // --- NEW: updateItemQuantity function ---
+    const updateItemQuantity = async (productId: string, newQuantity: number): Promise<boolean> => {
+        if (!isAuthenticated || newQuantity <= 0) return false;
+        // setIsUpdatingItemId(productId); // Set specific loading state
+        setCartError(null);
+        try {
+            const payload = { quantity: newQuantity };
+            await axiosInstance.put(`/cart/items/${productId}`, payload);
+            await fetchCart(); // Refresh cart state
+            return true;
+        } catch (err: unknown) {
+            console.error("Failed to update item quantity:", err);
+            const error = err as { response?: { data?: { message?: string } } };
+            setCartError(error.response?.data?.message ?? "Could not update item quantity.");
+            return false;
+        } finally {
+            // setIsUpdatingItemId(null); // Clear specific loading state
+        }
+    };
+
+    // --- NEW: removeItem function ---
+    const removeItem = async (productId: string): Promise<boolean> => {
+        if (!isAuthenticated) return false;
+       // setIsRemovingItemId(productId); // Set specific loading state
+        setCartError(null);
+        try {
+            await axiosInstance.delete(`/cart/items/${productId}`);
+            await fetchCart(); // Refresh cart state
+            return true;
+        } catch (err: unknown) {
+            console.error("Failed to remove item:", err);
+            const error = err as { response?: { data?: { message?: string } } };
+            setCartError(error.response?.data?.message ?? "Could not remove item from cart.");
+            return false;
+        } finally {
+            // setIsRemovingItemId(null); // Clear specific loading state
+        }
+    };
+
+    // --- NEW: clearCart function ---
+    const clearCart = async (): Promise<boolean> => {
+        if (!isAuthenticated) return false;
+        setIsLoadingCart(true); // Use general loading state for this
+        setCartError(null);
+        try {
+            await axiosInstance.delete('/cart');
+            await fetchCart(); // Refresh cart state (should be empty)
+            return true;
+        } catch (err: unknown) {
+            console.error("Failed to clear cart:", err);
+            const error = err as { response?: { data?: { message?: string } } };
+            setCartError(error.response?.data?.message ?? "Could not clear cart.");
+            return false;
+        } finally {
+            setIsLoadingCart(false);
+        }
+    };
 
 
     const value: CartContextType = {
@@ -135,7 +189,9 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         cartError,
         fetchCart,
         addToCart,
-        // Add other actions here later
+        updateItemQuantity,
+        removeItem,
+        clearCart,
     };
 
     return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
