@@ -1,66 +1,52 @@
 import type React from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Sparkles } from "lucide-react"
 import { ProductCard } from "@/components/ProductCard"
+import axiosInstance from "@/api/axiosInstance"
 
-const products = [
-  {
-    _id: "1",
-    name: "Fresh Organic Tomatoes",
-    price: 40,
-    unit: "kg",
-    unitQuantity: 1,
-    imageUrl: "/placeholder.svg?height=300&width=300",
-  },
-  {
-    _id: "2",
-    name: "Premium Basmati Rice",
-    price: 150,
-    unit: "kg",
-    unitQuantity: 1,
-    imageUrl: "/placeholder.svg?height=300&width=300",
-  },
-  {
-    _id: "3",
-    name: "Farm Fresh Eggs",
-    price: 80,
-    unit: "dozen",
-    unitQuantity: 1,
-    imageUrl: "/placeholder.svg?height=300&width=300",
-  },
-  {
-    _id: "4",
-    name: "Organic Baby Spinach",
-    price: 30,
-    unit: "g",
-    unitQuantity: 100,
-    imageUrl: "/placeholder.svg?height=300&width=300",
-  },
-  {
-    _id: "5",
-    name: "Fresh Whole Wheat Bread",
-    price: 35,
-    unit: "piece",
-    unitQuantity: 1,
-    imageUrl: "/placeholder.svg?height=300&width=300",
-  },
-  {
-    _id: "6",
-    name: "Organic Honey",
-    price: 250,
-    unit: "g",
-    unitQuantity: 500,
-    imageUrl: "/placeholder.svg?height=300&width=300",
-  },
-]
+interface Product {
+  _id: string;
+  name: string;
+  price: number;
+  unit: string;
+  unitQuantity: number;
+  imageUrl?: string;
+  // Add other fields like description, category if needed for display/filtering
+}
 
 const HomePage: React.FC = () => {
+
+  const [products, setProducts] = useState<Product[]>([])
+  const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true)
+  const [productError, setProductError] = useState<string | null>(null)
+  // --- State for AI Helper Modal (Add later) ---
+  // const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+        setIsLoadingProducts(true);
+        setProductError(null);
+        try {
+            // Fetching first page, default limit (e.g., 12 products)
+            const response = await axiosInstance.get('/products?limit=12');
+            setProducts(response.data.products ?? []); // Assuming backend sends { products: [...] }
+        } catch (err: unknown) {
+            console.error("Failed to fetch products:", err);
+            const error = err as { response?: { data?: { message?: string } } };
+            setProductError(error.response?.data?.message ?? "Could not load products.");
+        } finally {
+            setIsLoadingProducts(false);
+        }
+    };
+
+    fetchProducts();
+  }, []);
+
   const handleOpenAIHelper = () => {
     console.log("AI Helper clicked")
-  }
-
-  const handleAddToCart = (productId: string) => {
-    console.log(`Added product ${productId} to cart`)
+    // setIsModalOpen(true); // Add later
+    alert("AI Helper Modal Triggered! (Placeholder)");
   }
 
   return (
@@ -104,24 +90,37 @@ const HomePage: React.FC = () => {
       <section className="py-12 md:py-16 px-4 bg-gray-50">
         <div className="container mx-auto">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Popular Products</h2>
+          {isLoadingProducts && <p className="text-gray-500">Loading products...</p>}
+          {productError && <p className="text-red-500">{productError}</p>}
+          {!isLoadingProducts && !productError && products.length === 0 && (
+            <p>No products found.</p> // Empty state
+          )}
 
-          {/* Placeholder for product items - will be populated with ProductCard components */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {products.map((product) => (
-            <ProductCard key={product._id} product={product} onAddToCart={handleAddToCart} />
-          ))}
-          </div>
+          {!isLoadingProducts && !productError && products.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {products.map((product) => (
+                    <ProductCard
+                      key={product._id}
+                      product={product}
+                    />
+                ))}
+            </div>
+          )}
         </div>
       </section>
 
       {/* AI Helper Floating Action Button */}
       <button
         onClick={handleOpenAIHelper}
+        title="AI Recipe Helper"
         className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-green-600 text-white shadow-lg hover:bg-green-700 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
         aria-label="Open AI Helper"
       >
         <Sparkles className="w-6 h-6" />
       </button>
+
+      {/* AI Helper Modal Instance (Add later) */}
+      {/* <AIHelperModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} ... /> */}
     </div>
   )
 }

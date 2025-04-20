@@ -4,10 +4,12 @@ import { Menu, ShoppingCart, User, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useAuth } from "@/context/AuthContext"
+import { useCart } from '../context/CartContext';
 
 export default function Layout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { isAuthenticated, user, logout } = useAuth();
+  const { itemCount } = useCart();
   const currentYear = new Date().getFullYear()
 
   return (
@@ -79,9 +81,14 @@ export default function Layout() {
                   <Button variant="ghost" size="sm" className="text-white bg-red-500 rounded hover:bg-red-600 hover:text-white" onClick={logout}>
                     Logout
                   </Button>
-                  <Link to="/cart">
+                  <Link to="/cart" className="relative">
                     <Button variant="ghost" size="sm" className="text-white hover:bg-emerald-700 hover:text-white">
                       <ShoppingCart className="mr-2 h-4 w-4" />
+                      {itemCount > 0 && (
+                        <span className="absolute -top-2 -right-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full">
+                            {itemCount}
+                        </span>
+                      )}
                       Cart
                     </Button>
                   </Link>

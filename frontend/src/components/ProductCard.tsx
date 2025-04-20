@@ -3,6 +3,8 @@ import { ShoppingCart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { useCart } from "@/context/CartContext"
+import { useState } from "react"
 
 interface Product {
   _id: string
@@ -15,13 +17,29 @@ interface Product {
 
 interface ProductCardProps {
   readonly product: Product
-  readonly onAddToCart: (productId: string) => void
   readonly className?: string
 }
 
-export function ProductCard({ product, onAddToCart, className }: ProductCardProps) {
-  const handleAddToCart = () => {
-    onAddToCart(product._id)
+export function ProductCard({ product, className }: ProductCardProps) {
+  const { addToCart } = useCart(); // Get addToCart function from context
+  const [isAdding, setIsAdding] = useState(false); // Local loading state for this card
+  
+  const handleAddToCart = async () => {
+    if (!product?._id) return; // Guard clause
+
+    setIsAdding(true);
+    const success = await addToCart(product._id, 1); // Add 1 unit
+    if (success) {
+        // Optional: Show temporary success feedback on the button
+        console.log(`${product.name} added to cart!`);
+        // You might want a more visual feedback later (e.g., toast notification)
+    } else {
+        // Optional: Show error feedback (e.g., toast notification)
+          console.error(`Failed to add ${product.name} to cart.`);
+          alert("Failed to add item. Please try again."); // Simple alert for now
+    }
+    // Short delay before resetting button state for visual feedback
+    setTimeout(() => setIsAdding(false), 1000);
   }
 
   return (
@@ -31,13 +49,18 @@ export function ProductCard({ product, onAddToCart, className }: ProductCardProp
         className,
       )}
     >
-      <div className="relative aspect-square w-full">
-        <img
-          src={product.imageUrl ?? "/placeholder.svg?height=300&width=300"}
-          alt={product.name}
-          loading="lazy"
-          className="absolute inset-0 w-full h-full object-cover rounded-t-lg"
-        />
+      <div className="aspect-square w-full overflow-hidden">
+        {product.imageUrl ? (
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">
+            <span>No Image</span> {/* Placeholder */}
+          </div>
+        )}
       </div>
 
       <CardContent className="p-4">
@@ -51,10 +74,25 @@ export function ProductCard({ product, onAddToCart, className }: ProductCardProp
         <Button
           onClick={handleAddToCart}
           variant="outline"
-          className="w-full transition-colors hover:bg-green-600 hover:text-white hover:border-green-600"
+          disabled={isAdding}
+          className={`mt-auto w-full flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white 
+            ${isAdding ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500'} 
+            transition duration-150 ease-in-out`}
         >
-          <ShoppingCart className="mr-2 h-4 w-4" />
-          Add to Cart
+        {isAdding ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Adding...
+            </>
+        ) : (
+            <>
+            <ShoppingCart className="h-4 w-4 mr-2" />
+              Add to Cart
+            </>
+        )}
         </Button>
       </CardFooter>
     </Card>
