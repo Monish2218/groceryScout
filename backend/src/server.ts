@@ -7,6 +7,7 @@ import productRoutes from './routes/ProductRoutes';
 import seedDatabase from './utils/seedDatabase';
 import recipeRoutes from './routes/RecipeRoutes';
 import cartRoutes from './routes/CartRoutes';
+import orderRoutes from './routes/OrderRoutes';
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/recipes', recipeRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderRoutes);
 
 app.listen(port, () => {
   console.log(`Server is Fire at http://localhost:${port}`);
