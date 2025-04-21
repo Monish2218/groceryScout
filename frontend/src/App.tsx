@@ -5,34 +5,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import { CartPage } from './pages/CartPage';
 import ProtectedRoute from './components/ProtectedRoute';
-
-// Sample data for demonstration
-const sampleCartItems = [
-  {
-    id: "1",
-    name: "Organic Spinach",
-    imageUrl: "/placeholder.svg?height=200&width=200",
-    pricePerUnit: 50,
-    unit: "100g",
-    quantity: 2,
-  },
-  {
-    id: "2",
-    name: "Fresh Avocado",
-    imageUrl: "/placeholder.svg?height=200&width=200",
-    pricePerUnit: 120,
-    unit: "piece",
-    quantity: 3,
-  },
-  {
-    id: "3",
-    name: "Whole Wheat Bread",
-    imageUrl: "/placeholder.svg?height=200&width=200",
-    pricePerUnit: 75,
-    unit: "loaf",
-    quantity: 1,
-  },
-]
+import OrdersPage from './pages/OrdersPage';
 
 function App() {
   return (
@@ -44,8 +17,8 @@ function App() {
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
-          <Route path="cart" element={<CartPage initialCartItems={sampleCartItems} onClearCart={() => console.log("Cart cleared")} />} />
-            {/* <Route path="orders" element={<OrdersPage />} /> */}
+          <Route path="cart" element={<CartPage/>} />
+            <Route path="orders" element={<OrdersPage />} />
             {/* Add other protected routes here */}
           </Route>
         </Route>

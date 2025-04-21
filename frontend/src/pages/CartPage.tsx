@@ -1,24 +1,59 @@
+import { useState } from 'react';
 import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CartItem } from "../components/CartItem"
 import { CartSummary } from "../components/CartSummary"
 import { useCart } from "@/context/CartContext"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
+import axiosInstance from '../api/axiosInstance';
 
 export function CartPage() {
-  const { cart, isLoadingCart, cartError, clearCart } = useCart();
+  const { cart, isLoadingCart, cartError, clearCart, fetchCart } = useCart();
+  const navigate = useNavigate();
+
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   
   const handleClearCart = async () => {
     if (window.confirm("Are you sure you want to clear your entire cart?")) {
-        await clearCart();
-        // Optionally show feedback
+      await clearCart();
     }
   };
 
-  const handleCheckout = () => {
-    console.log("TODO: Implement Checkout");
-    alert("Checkout Process Started! (Placeholder)");
-  };
+  const handleCheckout = async () => {
+    if (!cart || cart.items.length === 0) {
+      alert("Your cart is empty."); // Or disable checkout button
+      return;
+    }
+
+    setIsCheckingOut(true);
+    setCheckoutError(null);
+
+    try {
+      const response = await axiosInstance.post('/orders');
+
+      if (response.status === 201) {
+        const createdOrder = response.data;
+        alert(`Order placed successfully! Order ID: ${createdOrder._id}`);
+
+        await fetchCart();
+
+        navigate('/orders');
+      } else {
+          throw new Error("Unexpected response status during checkout.");
+      }
+
+    } catch (err: unknown) {
+        console.error("Checkout failed:", err);
+        const error = err as { response?: { data?: { message?: string } } };
+        const message = error.response?.data?.message ?? "Failed to place order. Please try again.";
+        setCheckoutError(message);
+        // Optionally show error in a more prominent way
+        alert(`Error: ${message}`);
+    } finally {
+        setIsCheckingOut(false);
+    }
+};
 
   if (isLoadingCart) {
     return <div className="text-center p-10">Loading cart...</div>; // Loading state
@@ -52,37 +87,29 @@ export function CartPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Your Shopping Cart</h1>
+        {checkoutError && <p className="text-sm text-red-500">{checkoutError}</p>}
         {items.length > 0 && (
-          <Button variant="outline" size="sm" onClick={handleClearCart} className="text-sm text-red-600 hover:text-red-800 transition duration-150">
+          <Button variant="outline" size="sm" onClick={handleClearCart} className="text-sm text-red-600 hover:text-red-800 transition duration-150" disabled={items.length === 0}>
             <Trash2 className="h-4 w-4 mr-2" />
             Clear Cart
           </Button>
         )}
       </div>
 
-      {items.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <h2 className="text-xl font-medium text-gray-600 mb-4">Your cart is currently empty</h2>
-          <p className="text-gray-500 mb-6">Looks like you haven't added any items to your cart yet.</p>
-          <Button className="bg-emerald-600 hover:bg-emerald-700">
-            <a href="/products">Continue Shopping</a>
-          </Button>
+      <div className="grid md:grid-cols-3 gap-8">
+        <div className="md:col-span-2 space-y-4">
+          {items.map((item) => (
+            <CartItem
+              key={item.productId}
+              item={item}
+            />
+          ))}
         </div>
-      ) : (
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="md:col-span-2 space-y-4">
-            {items.map((item) => (
-              <CartItem
-                key={item.productId}
-                item={item}
-              />
-            ))}
-          </div>
-          <div className="md:col-span-1">
-            <CartSummary subtotal={subtotal} total={total} onCheckout={handleCheckout} />
-          </div>
+        <div className="md:col-span-1">
+          <CartSummary subtotal={subtotal} total={total} onCheckout={handleCheckout} isCheckingOut={isCheckingOut} />
         </div>
-      )}
+      </div>
+
     </div>
   )
 }
