@@ -8,38 +8,23 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
+import { MatchedItemType, RecipeApiResponse, SelectionState, UnavailableItemType } from "@/pages/HomePage"
+import { CheckedState } from "@radix-ui/react-checkbox"
 
 // Type definitions
-export interface MatchedItemType {
-  id: string
-  name: string
-  originalIngredient: string
-  price: string
-  priceUnit: string
-  imageUrl: string
-  quantity: number
-  isChecked: boolean
-}
-
-export interface UnavailableItemType {
-  id: string
-  name: string
-  quantity: string
-  reason: string
-}
 
 interface AIHelperModalProps {
   readonly isOpen: boolean
   readonly onClose: () => void
   readonly onSubmitRecipe: (formData: { recipeName: string; servings: number }) => void
   readonly isLoadingRecipe: boolean
-  readonly recipeSteps?: string[]
-  readonly matchedItems?: MatchedItemType[]
-  readonly unavailableItems?: UnavailableItemType[]
+  readonly recipeResponse: RecipeApiResponse | null;
+  readonly selectionState: SelectionState;
   readonly onAddItemsToCart: () => void
   readonly isAddingToCart: boolean
   readonly onItemCheckboxChange: (itemId: string, isChecked: boolean) => void
   readonly onItemQuantityChange: (itemId: string, newQuantity: number) => void
+  readonly error: string | null
 }
 
 export function AIHelperModal({
@@ -47,18 +32,17 @@ export function AIHelperModal({
   onClose,
   onSubmitRecipe,
   isLoadingRecipe,
-  recipeSteps = [],
-  matchedItems = [],
-  unavailableItems = [],
-  onAddItemsToCart,
-  isAddingToCart,
+  recipeResponse,
+  selectionState,
   onItemCheckboxChange,
   onItemQuantityChange,
+  onAddItemsToCart,
+  isAddingToCart,
+  error,
 }: AIHelperModalProps) {
   const [recipeName, setRecipeName] = useState("")
   const [servings, setServings] = useState(2)
-  const hasResults = recipeSteps.length > 0 || matchedItems.length > 0 || unavailableItems.length > 0
-
+  const hasResults = recipeResponse && !isLoadingRecipe
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     onSubmitRecipe({ recipeName, servings })
@@ -99,6 +83,7 @@ export function AIHelperModal({
               />
             </div>
           </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
           <Button
             type="submit"
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -120,11 +105,11 @@ export function AIHelperModal({
             <Separator />
 
             {/* Recipe Steps Section */}
-            {recipeSteps.length > 0 && (
+            {recipeResponse.recipeSteps?.length > 0 && (
               <div className="space-y-3">
                 <h3 className="text-lg font-semibold">Recipe Steps</h3>
                 <ol className="list-decimal pl-5 space-y-2">
-                  {recipeSteps.map((step, index) => (
+                  {recipeResponse.recipeSteps.map((step, index) => (
                     <li key={index} className="text-sm text-gray-700">
                       {step}
                     </li>
@@ -134,14 +119,15 @@ export function AIHelperModal({
             )}
 
             {/* Available Items Section */}
-            {matchedItems.length > 0 && (
+            {recipeResponse.matchedItems?.length > 0 && (
               <div className="space-y-3">
                 <h3 className="text-lg font-semibold">Available Items</h3>
                 <div className="space-y-2">
-                  {matchedItems.map((item) => (
+                  {recipeResponse.matchedItems.map((item) => (
                     <MatchedItemRow
-                      key={item.id}
+                      key={item.matchedProduct._id}
                       item={item}
+                      selection={selectionState[item.matchedProduct._id] || { selected: false, quantity: 0 }}
                       onCheckboxChange={onItemCheckboxChange}
                       onQuantityChange={onItemQuantityChange}
                     />
@@ -149,7 +135,7 @@ export function AIHelperModal({
                 </div>
                 <Button
                   onClick={onAddItemsToCart}
-                  disabled={isAddingToCart}
+                  disabled={isAddingToCart || Object.values(selectionState).every(s => !s.selected)}
                   className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
                   {isAddingToCart ? (
@@ -165,15 +151,21 @@ export function AIHelperModal({
             )}
 
             {/* Unavailable Items Section */}
-            {unavailableItems.length > 0 && (
+            {recipeResponse.unavailableItems?.length > 0 && (
               <div className="space-y-3">
                 <h3 className="text-lg font-semibold">Unavailable Items</h3>
                 <div className="space-y-2">
-                  {unavailableItems.map((item) => (
-                    <UnavailableItemRow key={item.id} item={item} />
+                  {recipeResponse.unavailableItems.map((item, index) => (
+                    <UnavailableItemRow key={`${item.originalIngredientName}-${index}`} item={item} />
                   ))}
                 </div>
+                <p className="text-xs text-gray-500 mt-2">Some items couldn't be found or require manual quantity checks.</p>
               </div>
+            )}
+
+            {/* Handle case where NO items were found at all */}
+            {recipeResponse.matchedItems?.length === 0 && recipeResponse.unavailableItems?.length === 0 && (
+              <p className="text-center text-gray-600 py-4">No ingredients were identified for this recipe.</p>
             )}
           </div>
         )}
@@ -184,35 +176,41 @@ export function AIHelperModal({
 
 interface MatchedItemRowProps {
   readonly item: MatchedItemType
+  readonly selection: { selected: boolean; quantity: number }
   readonly onCheckboxChange: (itemId: string, isChecked: boolean) => void
   readonly onQuantityChange: (itemId: string, newQuantity: number) => void
 }
 
-function MatchedItemRow({ item, onCheckboxChange, onQuantityChange }: MatchedItemRowProps) {
+function MatchedItemRow({ item, selection, onCheckboxChange, onQuantityChange }: MatchedItemRowProps) {
+  const handleQtyDecrement = () => onQuantityChange(item.matchedProduct._id, selection.quantity - 1);
+  const handleQtyIncrement = () => onQuantityChange(item.matchedProduct._id, selection.quantity + 1);
+  const handleCheckbox = (checked: CheckedState) => onCheckboxChange(item.matchedProduct._id, checked as boolean);
+  
   return (
     <div className="flex items-center gap-3 p-3 rounded-md border border-gray-200 bg-white">
       <Checkbox
-        id={`item-${item.id}`}
-        checked={item.isChecked}
-        onCheckedChange={(checked) => onCheckboxChange(item.id, checked as boolean)}
+        id={`item-${item.matchedProduct._id}`}
+        checked={selection.selected}
+        onCheckedChange={handleCheckbox}
       />
 
       <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
         <img
-          src={item.imageUrl || `/placeholder.svg?height=48&width=48`}
-          alt={item.name}
+          src={item.matchedProduct.imageUrl || `/placeholder.svg?height=48&width=48`}
+          alt={item.matchedProduct.name}
+          loading="lazy"
           className="h-full w-full object-cover object-center"
         />
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900">{item.name}</p>
-        <p className="text-xs text-gray-500">(from: {item.originalIngredient})</p>
+        <p className="text-sm font-medium text-gray-900">{item.matchedProduct.name}</p>
+        <p className="text-xs text-gray-500">(from: {item.originalIngredientName})</p>
       </div>
 
       <div className="text-right text-xs text-gray-500">
         <p>
-          {item.price} / {item.priceUnit}
+        {`₹${item.matchedProduct.price.toFixed(2)} / ${item.matchedProduct.unitQuantity} ${item.matchedProduct.unit}`}
         </p>
       </div>
 
@@ -222,20 +220,21 @@ function MatchedItemRow({ item, onCheckboxChange, onQuantityChange }: MatchedIte
           variant="outline"
           size="icon"
           className="h-6 w-6"
-          onClick={() => onQuantityChange(item.id, Math.max(1, item.quantity - 1))}
+          onClick={handleQtyDecrement}
+          disabled={selection.quantity <= 1}
         >
           <Minus className="h-3 w-3" />
           <span className="sr-only">Decrease</span>
         </Button>
 
-        <span className="text-sm w-6 text-center">{item.quantity}</span>
+        <span className="text-sm w-6 text-center">{selection.quantity}</span>
 
         <Button
           type="button"
           variant="outline"
           size="icon"
           className="h-6 w-6"
-          onClick={() => onQuantityChange(item.id, item.quantity + 1)}
+          onClick={handleQtyIncrement}
         >
           <Plus className="h-3 w-3" />
           <span className="sr-only">Increase</span>
@@ -253,8 +252,8 @@ function UnavailableItemRow({ item }: UnavailableItemRowProps) {
   return (
     <div className="flex flex-col p-3 rounded-md border border-gray-200 bg-gray-50">
       <div className="flex justify-between">
-        <p className="text-sm font-medium text-gray-900">{item.name}</p>
-        <p className="text-sm text-gray-500">{item.quantity}</p>
+        <p className="text-sm font-medium text-gray-900">{item.originalIngredientName}</p>
+        <p className="text-sm text-gray-500">{item.originalQuantity}</p>
       </div>
       <p className="text-xs text-red-500 mt-1">{item.reason}</p>
     </div>

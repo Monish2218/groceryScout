@@ -1,11 +1,13 @@
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Sparkles } from "lucide-react"
 import { ProductCard } from "@/components/ProductCard"
 import axiosInstance from "@/api/axiosInstance"
+import { useCart } from "@/context/CartContext"
+import { AIHelperModal } from "@/components/AIHelperModal"
 
-interface Product {
+export interface Product {
   _id: string;
   name: string;
   price: number;
@@ -15,13 +17,52 @@ interface Product {
   // Add other fields like description, category if needed for display/filtering
 }
 
+export interface MatchedItemType {
+  originalIngredientName: string;
+  originalQuantity: string;
+  matchedProduct: Product & { _id: string }; // Ensure product has _id
+  calculatedQuantityNeeded: number;
+  calculationNotes?: string;
+}
+
+// Type for unavailable items from API response
+export interface UnavailableItemType {
+  originalIngredientName: string;
+  originalQuantity: string;
+  reason: string;
+}
+
+// Type for the entire API response from /api/recipes/process
+export interface RecipeApiResponse {
+  recipeName: string;
+  servings: number;
+  matchedItems: MatchedItemType[];
+  unavailableItems: UnavailableItemType[];
+  recipeSteps: string[];
+}
+
+// Type for managing user selections within the modal
+export interface SelectionState {
+  [productId: string]: {
+      selected: boolean;
+      quantity: number;
+  };
+}
+
 const HomePage: React.FC = () => {
 
   const [products, setProducts] = useState<Product[]>([])
   const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true)
   const [productError, setProductError] = useState<string | null>(null)
-  // --- State for AI Helper Modal (Add later) ---
-  // const [isModalOpen, setIsModalOpen] = useState(false);
+  const { fetchCart } = useCart();
+  // --- State for AI Helper Modal ---
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoadingRecipe, setIsLoadingRecipe] = useState(false);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [recipeResponse, setRecipeResponse] = useState<RecipeApiResponse | null>(null);
+  const [selectionState, setSelectionState] = useState<SelectionState>({});
+  const [aiError, setAiError] = useState<string | null>(null);
+  // --- END NEW State ---
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -43,11 +84,111 @@ const HomePage: React.FC = () => {
     fetchProducts();
   }, []);
 
-  const handleOpenAIHelper = () => {
-    console.log("AI Helper clicked")
-    // setIsModalOpen(true); // Add later
-    alert("AI Helper Modal Triggered! (Placeholder)");
-  }
+  // --- AI Helper Modal Logic ---
+
+  const handleOpenAIHelper = useCallback(() => {
+    setRecipeResponse(null); // Clear previous results
+    setSelectionState({}); // Clear previous selections
+    setAiError(null); // Clear previous errors
+    setIsModalOpen(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+    // Optionally clear results on close, or keep them until next open
+    // setRecipeResponse(null);
+    // setSelectionState({});
+  }, []);
+
+  // Handles form submission inside the modal
+  const handleRecipeSubmit = useCallback(async (formData: { recipeName: string; servings: number }) => {
+    setIsLoadingRecipe(true);
+    setAiError(null);
+    setRecipeResponse(null); // Clear previous results before new fetch
+    setSelectionState({});
+    console.log("Submitting recipe:", formData);
+
+    try {
+      const response = await axiosInstance.post<RecipeApiResponse>('/recipes/process', formData);
+      console.log("Recipe API Response:", response.data);
+      setRecipeResponse(response.data);
+
+      // Initialize selection state based on matched items
+      const initialSelections: SelectionState = {};
+      response.data.matchedItems.forEach(item => {
+        initialSelections[item.matchedProduct._id] = {
+          selected: true, // Select by default
+          quantity: item.calculatedQuantityNeeded >= 1 ? item.calculatedQuantityNeeded : 1, // Ensure quantity is at least 1
+        };
+      });
+      setSelectionState(initialSelections);
+
+    } catch (err: unknown) {
+        console.error("Failed to process recipe:", err);
+        const error = err as { response?: { data?: { message?: string } } };
+        setAiError(error.response?.data?.message ?? "Failed to process recipe.");
+    } finally {
+        setIsLoadingRecipe(false);
+    }
+  }, []); // No dependencies needed if functions used inside are stable
+
+  // Handles checkbox changes for matched items
+  const handleItemCheckboxChange = useCallback((productId: string, isChecked: boolean) => {
+    setSelectionState(prev => ({
+      ...prev,
+      [productId]: { ...prev[productId], selected: isChecked }
+    }));
+  }, []);
+
+  // Handles quantity changes for matched items
+  const handleItemQuantityChange = useCallback((productId: string, newQuantity: number) => {
+    if (newQuantity >= 1) { // Ensure quantity is valid
+      setSelectionState(prev => ({
+        ...prev,
+        [productId]: { ...prev[productId], quantity: newQuantity }
+      }));
+    }
+  }, []);
+
+  // Handles adding selected items to the main cart
+  const handleAddSelectedToCart = useCallback(async () => {
+    const itemsToAdd = Object.entries(selectionState)
+      .filter(([, state]) => state.selected && state.quantity > 0)
+      .map(([productId, state]) => ({
+        productId: productId,
+        quantity: state.quantity
+      }));
+
+    if (itemsToAdd.length === 0) {
+      setAiError("Please select at least one item to add to the cart.");
+      return;
+    }
+
+    setIsAddingToCart(true);
+    setAiError(null);
+    console.log("Adding selected items:", itemsToAdd);
+
+    try {
+      // Use the specific endpoint for adding multiple items
+      await axiosInstance.post('/cart/items', { items: itemsToAdd });
+
+      await fetchCart(); // Refresh global cart state/count
+      setIsModalOpen(false); // Close modal on success
+      // Optionally show a success toast notification here
+      alert(`${itemsToAdd.length} item(s) added to cart!`); // Simple feedback
+
+    } catch (err: unknown) {
+        console.error("Failed to add selected items to cart:", err);
+        const error = err as { response?: { data?: { message?: string } } };
+        setAiError(error.response?.data?.message ?? "Could not add items to cart.");
+    } finally {
+        setIsAddingToCart(false);
+    }
+  }, [selectionState, fetchCart]); // Dependencies
+
+
+// ... (handleAddToCart placeholder for ProductCard - can likely be removed now or use CartContext directly)
+
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -119,8 +260,20 @@ const HomePage: React.FC = () => {
         <Sparkles className="w-6 h-6" />
       </button>
 
-      {/* AI Helper Modal Instance (Add later) */}
-      {/* <AIHelperModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} ... /> */}
+      {/* AI Helper Modal Instance */}
+      <AIHelperModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSubmitRecipe={handleRecipeSubmit}
+        isLoadingRecipe={isLoadingRecipe}
+        recipeResponse={recipeResponse} // Pass the whole response or individual parts
+        selectionState={selectionState} // Pass selection state
+        onItemCheckboxChange={handleItemCheckboxChange} // Pass handlers
+        onItemQuantityChange={handleItemQuantityChange}
+        onAddItemsToCart={handleAddSelectedToCart}
+        isAddingToCart={isAddingToCart}
+        error={aiError} // Pass error state
+      />
     </div>
   )
 }
