@@ -8,10 +8,9 @@ import { CartProvider } from './context/CartContext.tsx';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {/* Router should wrap AuthProvider and App */}
     <Router>
       <AuthProvider>
-        <CartProvider> {/* CartProvider inside AuthProvider */}
+        <CartProvider>
           <App />
         </CartProvider>
       </AuthProvider>

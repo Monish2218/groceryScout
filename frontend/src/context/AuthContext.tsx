@@ -19,12 +19,12 @@ interface AuthContextType {
     isAuthenticated: boolean;
     user: User | null;
     token: string | null;
-    isLoading: boolean; // Renamed for clarity
+    isLoading: boolean;
     error: string | null;
-    login: (credentials: Record<string, string>) => Promise<boolean>; // Return success status
-    register: (userData: Record<string, string>) => Promise<boolean>; // Return success status
+    login: (credentials: Record<string, string>) => Promise<boolean>;
+    register: (userData: Record<string, string>) => Promise<boolean>;
     logout: () => void;
-    clearError: () => void; // Function to clear errors manually
+    clearError: () => void;
     setError: (error: string | null) => void;
 }
 
@@ -57,8 +57,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setToken(receivedToken);
             setUser(loggedInUser);
             setIsAuthenticated(true);
-            navigate('/'); // Redirect on success
-            return true; // Indicate success
+            navigate('/');
+            return true;
         } catch (err: unknown) {
             console.error("Login failed:", err);
             const error = err as { response?: { data?: { message?: string } } };
@@ -68,18 +68,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setUser(null);
             setToken(null);
             localStorage.removeItem('authToken');
-            return false; // Indicate failure
+            return false;
         } finally {
             setIsLoading(false);
         }
     }, [navigate]);
 
-    // Register function
     const register = useCallback(async (userData: Record<string, string>): Promise<boolean> => {
         setIsLoading(true);
         setError(null);
         try {
-            // Assuming registration directly logs the user in (backend returns token/user)
             const response = await axiosInstance.post<{token: string; user: User}>('/auth/register', userData);
             const { token: receivedToken, user: newUser } = response.data;
 
@@ -87,8 +85,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setToken(receivedToken);
             setUser(newUser);
             setIsAuthenticated(true);
-            navigate('/'); // Redirect to homepage
-            return true; // Indicate success
+            navigate('/');
+            return true;
         } catch (err: unknown) {
             console.error("Registration failed:", err);
             const error = err as { response?: { data?: { message?: string } } };
@@ -98,30 +96,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setUser(null);
             setToken(null);
             localStorage.removeItem('authToken');
-            return false; // Indicate failure
+            return false;
         } finally {
             setIsLoading(false);
         }
     }, [navigate]);
 
-    // Logout function
     const logout = useCallback(() => {
         localStorage.removeItem('authToken');
         setToken(null);
         setUser(null);
         setIsAuthenticated(false);
         setError(null);
-        // Optional: Clear other related state if needed
         navigate('/login');
     }, [navigate]);
 
-    // Effect to sync state if token is removed manually elsewhere (e.g., interceptor)
     useEffect(() => {
         const handleStorageChange = () => {
             const currentToken = localStorage.getItem('authToken');
             if (currentToken !== token) {
-                 console.log("Auth token change detected, logging out.");
-                 logout(); // Force logout if token mismatch
+                console.log("Auth token change detected, logging out.");
+                logout();
             }
         };
         window.addEventListener('storage', handleStorageChange);
@@ -131,23 +126,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }, [token, logout]);
 
 
-    const value: AuthContextType = {
-        isAuthenticated,
-        user,
-        token,
-        isLoading,
-        error,
-        login,
-        register,
-        logout,
-        clearError,
-        setError,
-    };
+    const value: AuthContextType = React.useMemo(
+        () => ({
+            isAuthenticated,
+            user,
+            token,
+            isLoading,
+            error,
+            login,
+            register,
+            logout,
+            clearError,
+            setError,
+        }),
+        [isAuthenticated, user, token, isLoading, error, login, register, logout, clearError, setError]
+    );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook remains the same
 export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);
     if (context === undefined) {

@@ -11,8 +11,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { MatchedItemType, RecipeApiResponse, SelectionState, UnavailableItemType } from "@/pages/HomePage"
 import { CheckedState } from "@radix-ui/react-checkbox"
 
-// Type definitions
-
 interface AIHelperModalProps {
   readonly isOpen: boolean
   readonly onClose: () => void

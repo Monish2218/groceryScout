@@ -14,25 +14,22 @@ export interface Product {
   unit: string;
   unitQuantity: number;
   imageUrl?: string;
-  // Add other fields like description, category if needed for display/filtering
 }
 
 export interface MatchedItemType {
   originalIngredientName: string;
   originalQuantity: string;
-  matchedProduct: Product & { _id: string }; // Ensure product has _id
+  matchedProduct: Product & { _id: string };
   calculatedQuantityNeeded: number;
   calculationNotes?: string;
 }
 
-// Type for unavailable items from API response
 export interface UnavailableItemType {
   originalIngredientName: string;
   originalQuantity: string;
   reason: string;
 }
 
-// Type for the entire API response from /api/recipes/process
 export interface RecipeApiResponse {
   recipeName: string;
   servings: number;
@@ -41,7 +38,6 @@ export interface RecipeApiResponse {
   recipeSteps: string[];
 }
 
-// Type for managing user selections within the modal
 export interface SelectionState {
   [productId: string]: {
       selected: boolean;
@@ -55,23 +51,21 @@ const HomePage: React.FC = () => {
   const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true)
   const [productError, setProductError] = useState<string | null>(null)
   const { fetchCart } = useCart();
-  // --- State for AI Helper Modal ---
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoadingRecipe, setIsLoadingRecipe] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [recipeResponse, setRecipeResponse] = useState<RecipeApiResponse | null>(null);
   const [selectionState, setSelectionState] = useState<SelectionState>({});
   const [aiError, setAiError] = useState<string | null>(null);
-  // --- END NEW State ---
 
   useEffect(() => {
     const fetchProducts = async () => {
         setIsLoadingProducts(true);
         setProductError(null);
         try {
-            // Fetching first page, default limit (e.g., 12 products)
             const response = await axiosInstance.get('/products?limit=12');
-            setProducts(response.data.products ?? []); // Assuming backend sends { products: [...] }
+            setProducts(response.data.products ?? []);
         } catch (err: unknown) {
             console.error("Failed to fetch products:", err);
             const error = err as { response?: { data?: { message?: string } } };
@@ -84,27 +78,21 @@ const HomePage: React.FC = () => {
     fetchProducts();
   }, []);
 
-  // --- AI Helper Modal Logic ---
-
   const handleOpenAIHelper = useCallback(() => {
-    setRecipeResponse(null); // Clear previous results
-    setSelectionState({}); // Clear previous selections
-    setAiError(null); // Clear previous errors
+    setRecipeResponse(null);
+    setSelectionState({});
+    setAiError(null);
     setIsModalOpen(true);
   }, []);
 
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
-    // Optionally clear results on close, or keep them until next open
-    // setRecipeResponse(null);
-    // setSelectionState({});
   }, []);
 
-  // Handles form submission inside the modal
   const handleRecipeSubmit = useCallback(async (formData: { recipeName: string; servings: number }) => {
     setIsLoadingRecipe(true);
     setAiError(null);
-    setRecipeResponse(null); // Clear previous results before new fetch
+    setRecipeResponse(null);
     setSelectionState({});
     console.log("Submitting recipe:", formData);
 
@@ -113,12 +101,11 @@ const HomePage: React.FC = () => {
       console.log("Recipe API Response:", response.data);
       setRecipeResponse(response.data);
 
-      // Initialize selection state based on matched items
       const initialSelections: SelectionState = {};
       response.data.matchedItems.forEach(item => {
         initialSelections[item.matchedProduct._id] = {
-          selected: true, // Select by default
-          quantity: item.calculatedQuantityNeeded >= 1 ? item.calculatedQuantityNeeded : 1, // Ensure quantity is at least 1
+          selected: true,
+          quantity: item.calculatedQuantityNeeded >= 1 ? item.calculatedQuantityNeeded : 1,
         };
       });
       setSelectionState(initialSelections);
@@ -130,9 +117,8 @@ const HomePage: React.FC = () => {
     } finally {
         setIsLoadingRecipe(false);
     }
-  }, []); // No dependencies needed if functions used inside are stable
+  }, []);
 
-  // Handles checkbox changes for matched items
   const handleItemCheckboxChange = useCallback((productId: string, isChecked: boolean) => {
     setSelectionState(prev => ({
       ...prev,
@@ -140,9 +126,8 @@ const HomePage: React.FC = () => {
     }));
   }, []);
 
-  // Handles quantity changes for matched items
   const handleItemQuantityChange = useCallback((productId: string, newQuantity: number) => {
-    if (newQuantity >= 1) { // Ensure quantity is valid
+    if (newQuantity >= 1) {
       setSelectionState(prev => ({
         ...prev,
         [productId]: { ...prev[productId], quantity: newQuantity }
@@ -150,7 +135,6 @@ const HomePage: React.FC = () => {
     }
   }, []);
 
-  // Handles adding selected items to the main cart
   const handleAddSelectedToCart = useCallback(async () => {
     const itemsToAdd = Object.entries(selectionState)
       .filter(([, state]) => state.selected && state.quantity > 0)
@@ -169,14 +153,10 @@ const HomePage: React.FC = () => {
     console.log("Adding selected items:", itemsToAdd);
 
     try {
-      // Use the specific endpoint for adding multiple items
       await axiosInstance.post('/cart/items', { items: itemsToAdd });
-
-      await fetchCart(); // Refresh global cart state/count
-      setIsModalOpen(false); // Close modal on success
-      // Optionally show a success toast notification here
-      alert(`${itemsToAdd.length} item(s) added to cart!`); // Simple feedback
-
+      await fetchCart();
+      setIsModalOpen(false);
+      alert(`${itemsToAdd.length} item(s) added to cart!`); // TODO: Replace it with a toast notification here later
     } catch (err: unknown) {
         console.error("Failed to add selected items to cart:", err);
         const error = err as { response?: { data?: { message?: string } } };
@@ -184,11 +164,7 @@ const HomePage: React.FC = () => {
     } finally {
         setIsAddingToCart(false);
     }
-  }, [selectionState, fetchCart]); // Dependencies
-
-
-// ... (handleAddToCart placeholder for ProductCard - can likely be removed now or use CartContext directly)
-
+  }, [selectionState, fetchCart]);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -234,7 +210,7 @@ const HomePage: React.FC = () => {
           {isLoadingProducts && <p className="text-gray-500">Loading products...</p>}
           {productError && <p className="text-red-500">{productError}</p>}
           {!isLoadingProducts && !productError && products.length === 0 && (
-            <p>No products found.</p> // Empty state
+            <p>No products found.</p>
           )}
 
           {!isLoadingProducts && !productError && products.length > 0 && (
@@ -266,13 +242,13 @@ const HomePage: React.FC = () => {
         onClose={handleCloseModal}
         onSubmitRecipe={handleRecipeSubmit}
         isLoadingRecipe={isLoadingRecipe}
-        recipeResponse={recipeResponse} // Pass the whole response or individual parts
-        selectionState={selectionState} // Pass selection state
-        onItemCheckboxChange={handleItemCheckboxChange} // Pass handlers
+        recipeResponse={recipeResponse}
+        selectionState={selectionState}
+        onItemCheckboxChange={handleItemCheckboxChange}
         onItemQuantityChange={handleItemQuantityChange}
         onAddItemsToCart={handleAddSelectedToCart}
         isAddingToCart={isAddingToCart}
-        error={aiError} // Pass error state
+        error={aiError}
       />
     </div>
   )

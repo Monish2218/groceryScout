@@ -22,7 +22,7 @@ export function CartPage() {
 
   const handleCheckout = async () => {
     if (!cart || cart.items.length === 0) {
-      alert("Your cart is empty."); // Or disable checkout button
+      alert("Your cart is empty."); // TODO: Replace with a toast notification later
       return;
     }
 
@@ -48,33 +48,31 @@ export function CartPage() {
         const error = err as { response?: { data?: { message?: string } } };
         const message = error.response?.data?.message ?? "Failed to place order. Please try again.";
         setCheckoutError(message);
-        // Optionally show error in a more prominent way
-        alert(`Error: ${message}`);
+        alert(`Error: ${message}`); // TODO: Replace with a toast notification later
     } finally {
         setIsCheckingOut(false);
     }
 };
 
   if (isLoadingCart) {
-    return <div className="text-center p-10">Loading cart...</div>; // Loading state
+    return <div className="text-center p-10">Loading cart...</div>;
   }
 
   if (cartError) {
-    return <div className="text-center p-10 text-red-600">Error loading cart: {cartError}</div>; // Error state
+    return <div className="text-center p-10 text-red-600">Error loading cart: {cartError}</div>;
   }
 
-  const items = cart?.items ?? []; // Default to empty array if cart or items are null/undefined
-  const subtotal = cart?.totalPrice ?? 0; // Use totalPrice from cart object
-  const total = subtotal; // Add tax/shipping later if needed
+  const items = cart?.items ?? [];
+  const subtotal = cart?.totalPrice ?? 0;
+  const total = subtotal;
 
-  // Empty Cart Message
   if (!items || items.length === 0) {
     return (
       <div className="text-center p-10">
           <h1 className="text-2xl font-semibold mb-4">Your Shopping Cart is Empty</h1>
           <p className="text-gray-600 mb-6">Looks like you haven't added anything yet.</p>
           <Link
-              to="/products" // Link to products page
+              to="/"
               className="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow hover:bg-green-700 transition duration-150"
           >
               Start Shopping
