@@ -1,11 +1,12 @@
-import type React from "react"
-import { useState, useEffect, useCallback } from "react"
-import { Button } from "@/components/ui/button"
-import { Sparkles } from "lucide-react"
-import { ProductCard } from "@/components/ProductCard"
-import axiosInstance from "@/api/axiosInstance"
-import { useCart } from "@/context/CartContext"
-import { AIHelperModal } from "@/components/AIHelperModal"
+import React, { useState, useCallback } from "react";
+import { Sparkles } from "lucide-react";
+import { fetchProducts } from '@/api/productsApi';
+import { Button } from "@/components/ui/button";
+import { ProductCard } from "@/components/ProductCard";
+import { useCart } from "@/context/CartContext";
+import { AIHelperModal } from "@/components/AIHelperModal";
+import { useQuery } from "@tanstack/react-query";
+import axiosInstance from "@/api/axiosInstance";
 
 export interface Product {
   _id: string;
@@ -47,9 +48,6 @@ export interface SelectionState {
 
 const HomePage: React.FC = () => {
 
-  const [products, setProducts] = useState<Product[]>([])
-  const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true)
-  const [productError, setProductError] = useState<string | null>(null)
   const { fetchCart } = useCart();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,24 +57,15 @@ const HomePage: React.FC = () => {
   const [selectionState, setSelectionState] = useState<SelectionState>({});
   const [aiError, setAiError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-        setIsLoadingProducts(true);
-        setProductError(null);
-        try {
-            const response = await axiosInstance.get('/products?limit=12');
-            setProducts(response.data.products ?? []);
-        } catch (err: unknown) {
-            console.error("Failed to fetch products:", err);
-            const error = err as { response?: { data?: { message?: string } } };
-            setProductError(error.response?.data?.message ?? "Could not load products.");
-        } finally {
-            setIsLoadingProducts(false);
-        }
-    };
-
-    fetchProducts();
-  }, []);
+  const {
+    data: productData,
+    isLoading: isLoadingProducts,
+    isError: isProductError,
+    error: productError,
+  } = useQuery({
+    queryKey: ['products', { limit: 12, page: 1}],
+    queryFn: () => fetchProducts({ limit: 12, page: 1 }),
+  })
 
   const handleOpenAIHelper = useCallback(() => {
     setRecipeResponse(null);
@@ -208,18 +197,18 @@ const HomePage: React.FC = () => {
         <div className="container mx-auto">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Popular Products</h2>
           {isLoadingProducts && <p className="text-gray-500">Loading products...</p>}
-          {productError && <p className="text-red-500">{productError}</p>}
-          {!isLoadingProducts && !productError && products.length === 0 && (
+          {isProductError && <p className="text-red-500">{productError.message ?? "Could not load products."}</p>}
+          {!isLoadingProducts && !isProductError && (!productData || productData.products.length === 0) && (
             <p>No products found.</p>
           )}
 
-          {!isLoadingProducts && !productError && products.length > 0 && (
+          {!isLoadingProducts && !productError && productData && productData.products.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {products.map((product) => (
-                    <ProductCard
-                      key={product._id}
-                      product={product}
-                    />
+                {productData.products.map((product) => (
+                  <ProductCard
+                    key={product._id}
+                    product={product}
+                  />
                 ))}
             </div>
           )}
