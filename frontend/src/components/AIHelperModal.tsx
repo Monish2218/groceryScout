@@ -1,7 +1,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { X, Minus, Plus, Loader2 } from "lucide-react"
+import { Minus, Plus, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -51,10 +51,6 @@ export function AIHelperModal({
       <DialogContent className="max-w-3xl w-full overflow-y-auto max-h-[90vh] p-6">
         <DialogHeader className="relative">
           <DialogTitle className="text-2xl font-bold text-center">AI Recipe Shopping Assistant</DialogTitle>
-          <Button variant="ghost" size="icon" className="absolute right-0 top-0" onClick={onClose}>
-            <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
-          </Button>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
@@ -194,7 +190,7 @@ function MatchedItemRow({ item, selection, onCheckboxChange, onQuantityChange }:
 
       <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
         <img
-          src={item.matchedProduct.imageUrl || `/placeholder.svg?height=48&width=48`}
+          src={item.matchedProduct.imageUrl ?? `/placeholder.svg?height=48&width=48`}
           alt={item.matchedProduct.name}
           loading="lazy"
           className="h-full w-full object-cover object-center"

@@ -1,72 +1,53 @@
-import { useState } from 'react';
 import { Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { CartItem } from "../components/CartItem"
-import { CartSummary } from "../components/CartSummary"
-import { useCart } from "@/context/CartContext"
 import { Link, useNavigate } from "react-router-dom"
-import axiosInstance from '../api/axiosInstance';
+
+import { Button } from "@/components/ui/button"
+import { CartItem } from "@/components/CartItem"
+import { CartSummary } from "@/components/CartSummary"
+import { useFetchCart, useClearCart } from '@/queries/useCartQueries';
+import { useCreateOrder } from '@/queries/useOrderQueries';
+import { Order } from "@/api/ordersApi"
 
 export function CartPage() {
-  const { cart, isLoadingCart, cartError, clearCart, fetchCart } = useCart();
   const navigate = useNavigate();
 
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const { data: cart, isLoading: isLoadingCart, error: cartError } = useFetchCart();
+  const clearCartMutation = useClearCart();
+  const createOrderMutation = useCreateOrder();
   
   const handleClearCart = async () => {
     if (window.confirm("Are you sure you want to clear your entire cart?")) {
-      await clearCart();
+      clearCartMutation.mutate();
     }
   };
 
-  const handleCheckout = async () => {
-    if (!cart || cart.items.length === 0) {
-      alert("Your cart is empty."); // TODO: Replace with a toast notification later
-      return;
-    }
-
-    setIsCheckingOut(true);
-    setCheckoutError(null);
-
-    try {
-      const response = await axiosInstance.post('/orders');
-
-      if (response.status === 201) {
-        const createdOrder = response.data;
+  const handleCheckout = () => {
+    if (!cart || cart.items.length === 0) return;
+    createOrderMutation.mutate(undefined, {
+      onSuccess: (createdOrder : Order) => {
         alert(`Order placed successfully! Order ID: ${createdOrder._id}`);
-
-        await fetchCart();
-
         navigate('/orders');
-      } else {
-          throw new Error("Unexpected response status during checkout.");
+      },
+      onError: (error: unknown) => {
+        const err = error as { message?: string };
+        alert(`Error placing order: ${err.message ?? 'Please try again'}`);
       }
-
-    } catch (err: unknown) {
-        console.error("Checkout failed:", err);
-        const error = err as { response?: { data?: { message?: string } } };
-        const message = error.response?.data?.message ?? "Failed to place order. Please try again.";
-        setCheckoutError(message);
-        alert(`Error: ${message}`); // TODO: Replace with a toast notification later
-    } finally {
-        setIsCheckingOut(false);
-    }
-};
+    });
+  };
 
   if (isLoadingCart) {
     return <div className="text-center p-10">Loading cart...</div>;
   }
 
   if (cartError) {
-    return <div className="text-center p-10 text-red-600">Error loading cart: {cartError}</div>;
+    return <div className="text-center p-10 text-red-600">Error loading cart: {cartError.message}</div>;
   }
 
   const items = cart?.items ?? [];
   const subtotal = cart?.totalPrice ?? 0;
   const total = subtotal;
 
-  if (!items || items.length === 0) {
+  if (!isLoadingCart && items.length === 0) {
     return (
       <div className="text-center p-10">
           <h1 className="text-2xl font-semibold mb-4">Your Shopping Cart is Empty</h1>
@@ -85,11 +66,11 @@ export function CartPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Your Shopping Cart</h1>
-        {checkoutError && <p className="text-sm text-red-500">{checkoutError}</p>}
+        {createOrderMutation.error instanceof Error && <p className="text-sm text-red-500">{createOrderMutation.error.message}</p>}
         {items.length > 0 && (
           <Button variant="outline" size="sm" onClick={handleClearCart} className="text-sm text-red-600 hover:text-red-800 transition duration-150" disabled={items.length === 0}>
             <Trash2 className="h-4 w-4 mr-2" />
-            Clear Cart
+            {clearCartMutation.isPending ? 'Clearing...' : 'Clear Cart'}
           </Button>
         )}
       </div>
@@ -104,7 +85,7 @@ export function CartPage() {
           ))}
         </div>
         <div className="md:col-span-1">
-          <CartSummary subtotal={subtotal} total={total} onCheckout={handleCheckout} isCheckingOut={isCheckingOut} />
+          <CartSummary subtotal={subtotal} total={total} onCheckout={handleCheckout} isCheckingOut={createOrderMutation.isPending} />
         </div>
       </div>
 

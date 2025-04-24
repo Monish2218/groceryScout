@@ -4,13 +4,14 @@ import { Menu, ShoppingCart, User, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useAuth } from "@/context/AuthContext"
-import { useCart } from '../context/CartContext';
+import { useFetchCart } from '@/queries/useCartQueries';
 
 export default function Layout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { isAuthenticated, user, logout } = useAuth();
-  const { itemCount } = useCart();
+  const { data: cart, isLoading: isLoadingCart } = useFetchCart();
   const currentYear = new Date().getFullYear()
+  const itemCount = cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -84,7 +85,7 @@ export default function Layout() {
                   <Link to="/cart" className="relative">
                     <Button variant="ghost" size="sm" className="text-white hover:bg-emerald-700 hover:text-white">
                       <ShoppingCart className="mr-2 h-4 w-4" />
-                      {itemCount > 0 && (
+                      {!isLoadingCart && itemCount > 0 && (
                         <span className="absolute -top-2 -right-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full">
                             {itemCount}
                         </span>

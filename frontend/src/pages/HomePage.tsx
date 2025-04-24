@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from "react";
 import { Sparkles } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchProducts } from '@/api/productsApi';
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/ProductCard";
-import { useCart } from "@/context/CartContext";
 import { AIHelperModal } from "@/components/AIHelperModal";
-import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "@/api/axiosInstance";
+import { useAddToCart } from '@/queries/useCartQueries';
 
 export interface Product {
   _id: string;
@@ -48,14 +48,12 @@ export interface SelectionState {
 
 const HomePage: React.FC = () => {
 
-  const { fetchCart } = useCart();
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoadingRecipe, setIsLoadingRecipe] = useState(false);
-  const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [recipeResponse, setRecipeResponse] = useState<RecipeApiResponse | null>(null);
   const [selectionState, setSelectionState] = useState<SelectionState>({});
   const [aiError, setAiError] = useState<string | null>(null);
+  const addToCartMutation = useAddToCart();
 
   const {
     data: productData,
@@ -137,23 +135,17 @@ const HomePage: React.FC = () => {
       return;
     }
 
-    setIsAddingToCart(true);
-    setAiError(null);
-    console.log("Adding selected items:", itemsToAdd);
-
-    try {
-      await axiosInstance.post('/cart/items', { items: itemsToAdd });
-      await fetchCart();
-      setIsModalOpen(false);
-      alert(`${itemsToAdd.length} item(s) added to cart!`); // TODO: Replace it with a toast notification here later
-    } catch (err: unknown) {
-        console.error("Failed to add selected items to cart:", err);
-        const error = err as { response?: { data?: { message?: string } } };
-        setAiError(error.response?.data?.message ?? "Could not add items to cart.");
-    } finally {
-        setIsAddingToCart(false);
-    }
-  }, [selectionState, fetchCart]);
+    addToCartMutation.mutate({ items: itemsToAdd }, {
+      onSuccess: () => {
+        setIsModalOpen(false);
+        alert(`${itemsToAdd.length} item(s) added to cart!`); 
+      },
+      onError: (error: unknown) => {
+        const err = error as { message?: string };
+        setAiError(err.message ?? "Could not add items to cart.");
+      }
+    });
+  }, [selectionState, addToCartMutation, setIsModalOpen, setAiError]);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -166,7 +158,7 @@ const HomePage: React.FC = () => {
           <p className="text-lg md:text-xl text-gray-700 mb-8 max-w-2xl mx-auto">
             Let AI turn your favorite recipes into ready-to-buy shopping lists
           </p>
-          <Button size="lg" className="bg-green-600 hover:bg-green-700 text-white font-medium px-8">
+          <Button size="lg" className="bg-green-600 hover:bg-green-700 text-white font-medium px-8" onClick={handleOpenAIHelper}>
             Try the Recipe Helper
           </Button>
         </div>
@@ -236,7 +228,7 @@ const HomePage: React.FC = () => {
         onItemCheckboxChange={handleItemCheckboxChange}
         onItemQuantityChange={handleItemQuantityChange}
         onAddItemsToCart={handleAddSelectedToCart}
-        isAddingToCart={isAddingToCart}
+        isAddingToCart={addToCartMutation.isPending}
         error={aiError}
       />
     </div>

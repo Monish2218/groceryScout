@@ -3,8 +3,7 @@ import { ShoppingCart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { useCart } from "@/context/CartContext"
-import { useState } from "react"
+import { useAddToCart } from '../queries/useCartQueries';
 
 interface Product {
   _id: string
@@ -21,26 +20,12 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, className }: ProductCardProps) {
-  const { addToCart } = useCart(); // Get addToCart function from context
-  const [isAdding, setIsAdding] = useState(false); // Local loading state for this card
+  const addToCartMutation = useAddToCart();
   
   const handleAddToCart = async () => {
-    if (!product?._id) return; // Guard clause
-
-    setIsAdding(true);
-    const success = await addToCart(product._id, 1); // Add 1 unit
-    if (success) {
-        // Optional: Show temporary success feedback on the button
-        console.log(`${product.name} added to cart!`);
-        // You might want a more visual feedback later (e.g., toast notification)
-    } else {
-        // Optional: Show error feedback (e.g., toast notification)
-          console.error(`Failed to add ${product.name} to cart.`);
-          alert("Failed to add item. Please try again."); // Simple alert for now
-    }
-    // Short delay before resetting button state for visual feedback
-    setTimeout(() => setIsAdding(false), 1000);
-  }
+    if (!product?._id) return; 
+    addToCartMutation.mutate({ items: [{ productId: product._id, quantity: 1 }] });
+  };
 
   return (
     <Card
@@ -58,7 +43,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
           />
         ) : (
           <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">
-            <span>No Image</span> {/* Placeholder */}
+            <span>No Image</span>
           </div>
         )}
       </div>
@@ -74,12 +59,12 @@ export function ProductCard({ product, className }: ProductCardProps) {
         <Button
           onClick={handleAddToCart}
           variant="outline"
-          disabled={isAdding}
+          disabled={addToCartMutation.isPending}
           className={`mt-auto w-full flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white 
-            ${isAdding ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500'} 
+            ${addToCartMutation.isPending ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500'} 
             transition duration-150 ease-in-out`}
         >
-        {isAdding ? (
+        {addToCartMutation.isPending ? (
             <>
               <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import axiosInstance from '../api/axiosInstance';
-import { useAuth } from '../context/AuthContext';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,27 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ListOrderedIcon, InboxIcon } from 'lucide-react';
-
-export interface OrderItem {
-    productId: { _id: string; name?: string };
-    name: string;
-    imageUrl?: string;
-    quantity: number;
-    pricePerUnit: number;
-    unit: string;
-    unitQuantity: number;
-}
-
-export interface Order {
-    _id: string;
-    userId: string;
-    items: OrderItem[];
-    totalAmount: number;
-    status: string;
-    orderDate: string;
-    createdAt: string;
-    updatedAt: string;
-}
+import { useFetchOrders } from '@/queries/useOrderQueries';
 
 export const formatDate = (dateString: string): string => {
     try {
@@ -42,32 +20,27 @@ export const formatDate = (dateString: string): string => {
     }
 };
 
+export const getBadgeVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
+    switch (status.toLowerCase()) {
+        case 'delivered': return 'default';
+        case 'shipped': return 'default';
+        case 'processing': return 'secondary';
+        case 'confirmed': return 'secondary';
+        case 'pending': return 'outline';
+        case 'cancelled': return 'destructive';
+        default: return 'secondary';
+    }
+};
+
 const formatCurrency = (amount: number) => `₹${amount.toFixed(2)}`;
 
 const OrdersPage: React.FC = () => {
-    const { isAuthenticated } = useAuth();
-    const [orders, setOrders] = useState<Order[]>([]);
-    const [isLoadingOrders, setIsLoadingOrders] = useState<boolean>(true);
-    const [ordersError, setOrdersError] = useState<string | null>(null);
-
-    useEffect(() => {
-        const fetchOrders = async () => {
-            if (!isAuthenticated) { setIsLoadingOrders(false); return; }
-            setIsLoadingOrders(true);
-            setOrdersError(null);
-            try {
-                const response = await axiosInstance.get<Order[]>('/orders');
-                setOrders(response.data);
-            } catch (err: unknown) {
-                console.error("Failed to fetch orders:", err);
-                const error = err as { response?: { data?: { message?: string } } };
-                setOrdersError(error.response?.data?.message ?? "Could not load order history.");
-            } finally {
-                setIsLoadingOrders(false);
-            }
-        };
-        fetchOrders();
-    }, [isAuthenticated]);
+    const {
+        data: orders = [],
+        isLoading: isLoadingOrders,
+        isError: isOrdersError,
+        error: ordersError,
+    } = useFetchOrders();
 
     if (isLoadingOrders) {
         return (
@@ -76,41 +49,41 @@ const OrdersPage: React.FC = () => {
                  {[...Array(3)].map((_, i) => (
                     <Card key={i}>
                         <CardHeader>
-                             <Skeleton className="h-6 w-3/4" />
-                             <Skeleton className="h-4 w-1/2 mt-1" />
+                            <Skeleton className="h-6 w-3/4" />
+                            <Skeleton className="h-4 w-1/2 mt-1" />
                         </CardHeader>
                         <CardContent>
-                             <Skeleton className="h-4 w-full" />
-                             <Skeleton className="h-4 w-5/6 mt-2" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-5/6 mt-2" />
                         </CardContent>
-                         <CardFooter>
-                             <Skeleton className="h-8 w-24" />
-                         </CardFooter>
+                        <CardFooter>
+                            <Skeleton className="h-8 w-24" />
+                        </CardFooter>
                     </Card>
                  ))}
             </div>
         );
     }
 
-    if (ordersError) {
+    if (isOrdersError) {
         return (
             <div className="container mx-auto px-4 py-8">
                  <Alert variant="destructive">
-                     <AlertTitle>Error Loading Orders</AlertTitle>
-                     <AlertDescription>{ordersError}</AlertDescription>
+                    <AlertTitle>Error Loading Orders</AlertTitle>
+                    <AlertDescription>{ordersError.message ?? 'Could not load orders.'}</AlertDescription>
                  </Alert>
             </div>
         );
     }
 
-    if (orders.length === 0) {
+    if (!isLoadingOrders && orders.length === 0) {
         return (
              <div className="container mx-auto px-4 py-8 text-center flex flex-col items-center">
                 <InboxIcon className="w-16 h-16 text-gray-300 mb-4" />
                 <h2 className="text-xl font-semibold text-gray-700 mb-2">No Orders Yet!</h2>
                 <p className="text-gray-500 mb-6">Your past orders will appear here once you place them.</p>
                 <Button asChild>
-                     <Link to="/">Start Shopping</Link>
+                    <Link to="/">Start Shopping</Link>
                 </Button>
             </div>
         );
@@ -119,12 +92,10 @@ const OrdersPage: React.FC = () => {
     return (
         <div className="container mx-auto px-4 py-8 space-y-6">
             <div className="flex justify-between items-center mb-6">
-                 <h1 className="text-3xl font-bold text-gray-800 flex items-center">
-                     <ListOrderedIcon className="w-7 h-7 mr-2 text-green-600"/> Your Orders
-                 </h1>
-                 {/* Optional: Add filtering/sorting options here later */}
+                <h1 className="text-3xl font-bold text-gray-800 flex items-center">
+                    <ListOrderedIcon className="w-7 h-7 mr-2 text-green-600"/> Your Orders
+                </h1>
             </div>
-
 
             {orders.map((order) => (
                 <Card key={order._id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -172,15 +143,3 @@ const OrdersPage: React.FC = () => {
 };
 
 export default OrdersPage;
-
-export const getBadgeVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
-    switch (status.toLowerCase()) {
-        case 'delivered': return 'default';
-        case 'shipped': return 'default';
-        case 'processing': return 'secondary';
-        case 'confirmed': return 'secondary';
-        case 'pending': return 'outline';
-        case 'cancelled': return 'destructive';
-        default: return 'secondary';
-    }
-};

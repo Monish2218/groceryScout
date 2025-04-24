@@ -1,33 +1,28 @@
 import { Minus, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useCart, type CartItem } from "../context/CartContext"
-import { useState } from "react";
+import { type CartItem } from "@/api/cartApi";
+import { useRemoveCartItem, useUpdateCartItem } from "@/queries/useCartQueries";
 
 interface CartItemProps {
   readonly item: CartItem
 }
 
 export function CartItem({ item }: CartItemProps) {
-  const { updateItemQuantity, removeItem } = useCart();
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isRemoving, setIsRemoving] = useState(false);
+  const updateItemMutation = useUpdateCartItem();
+  const removeItemMutation = useRemoveCartItem();
 
-  const handleQuantityChange = async (newQuantity: number) => {
-    if (newQuantity < 1 || isUpdating) return; // Prevent zero/negative qty or double clicks
-    setIsUpdating(true);
-    await updateItemQuantity(item.productId, newQuantity);
-    setIsUpdating(false); // Reset loading state
-};
-
-  const handleRemove = async () => {
-     if (isRemoving) return; // Prevent double clicks
-     setIsRemoving(true);
-     // Optional: Add confirmation dialog
-     // if (window.confirm(`Remove ${item.name} from cart?`)) {
-         await removeItem(item.productId);
-     // }
-     // Don't need to setIsRemoving(false) if item is removed and component unmounts
+  const handleQuantityChange = (newQuantity: number) => {
+    if (newQuantity < 1 || updateItemMutation.isPending) return;
+    updateItemMutation.mutate({ productId: item.productId, quantity: newQuantity });
   };
+
+  const handleRemove = () => {
+    if (removeItemMutation.isPending) return;
+    removeItemMutation.mutate(item.productId);
+  };
+
+  const isUpdatingThisItem = updateItemMutation.isPending && updateItemMutation.variables?.productId === item.productId;
+  const isRemovingThisItem = removeItemMutation.isPending && removeItemMutation.variables === item.productId;
 
   const itemTotal = (item.quantity * item.pricePerUnit).toFixed(2);
 
@@ -50,14 +45,14 @@ export function CartItem({ item }: CartItemProps) {
           size="icon"
           className="h-8 w-8"
           onClick={() => handleQuantityChange(item.quantity - 1)}
-          disabled={item.quantity <= 1 || isUpdating}
+          disabled={item.quantity <= 1 || isUpdatingThisItem}
           aria-label="Decrease quantity"
         >
           <Minus className="h-4 w-4" />
         </Button>
 
         <span className="text-sm font-medium w-8 text-center">
-          {isUpdating ? '...' : item.quantity} {/* Show loading indication */}
+          {isUpdatingThisItem ? '...' : item.quantity} {/* Show loading indication */}
         </span>
 
         <Button 
@@ -65,7 +60,7 @@ export function CartItem({ item }: CartItemProps) {
           size="icon" 
           className="h-8 w-8" 
           onClick={() => handleQuantityChange(item.quantity + 1)}
-          disabled={isUpdating}
+          disabled={isUpdatingThisItem}
           aria-label="Increase quantity"
         >
           <Plus className="h-4 w-4" />
@@ -79,11 +74,11 @@ export function CartItem({ item }: CartItemProps) {
           size="sm"
           className="text-gray-500 hover:text-red-500 mt-1 h-8 px-2"
           onClick={handleRemove}
-          disabled={isRemoving}
+          disabled={isRemovingThisItem}
           aria-label="Remove from cart"
         >
-          {isRemoving ? (
-            <svg className="animate-spin h-5 w-5 text-red-500" /* ...spinner svg... */ ></svg>
+          {isRemovingThisItem ? (
+            <svg className="animate-spin h-5 w-5 text-red-500" ></svg>
           ) : (
             <>
               <Trash2 className="h-4 w-4 mr-1" />

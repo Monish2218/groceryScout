@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axiosInstance from '../api/axiosInstance';
-import { useAuth } from '../context/AuthContext';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,67 +8,43 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ArrowLeftIcon } from 'lucide-react';
-import { formatDate, getBadgeVariant, Order } from './OrdersPage';
+import { formatDate, getBadgeVariant } from './OrdersPage';
+import { useFetchOrderDetails } from '@/queries/useOrderQueries';
 
 const formatCurrency = (amount: number) => `₹${amount.toFixed(2)}`;
 
 const OrderDetailsPage: React.FC = () => {
     const { orderId } = useParams<{ orderId: string }>();
-    const { isAuthenticated } = useAuth();
-    const [order, setOrder] = useState<Order | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
+    
+    const {
+        data: order,
+        isLoading,
+        isError,
+        error,
+    } = useFetchOrderDetails(orderId);
 
-    useEffect(() => {
-        const fetchOrderDetails = async () => {
-            if (!isAuthenticated || !orderId) {
-                setIsLoading(false);
-                setError("Order ID missing or user not authenticated.");
-                return;
-            }
-            setIsLoading(true);
-            setError(null);
-            try {
-                const response = await axiosInstance.get<Order>(`/orders/${orderId}`);
-                setOrder(response.data);
-            } catch (err: unknown) {
-                console.error(`Failed to fetch order ${orderId}:`, err);
-                const error = err as { response?: { status?: number; data?: { message?: string } } };
-                 if (error.response?.status === 404) {
-                    setError("Order not found or you do not have permission to view it.");
-                 } else {
-                    setError(error.response?.data?.message ?? "Could not load order details.");
-                 }
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchOrderDetails();
-    }, [isAuthenticated, orderId]);
-
-     if (isLoading) {
+    if (isLoading) {
         return (
             <div className="container mx-auto px-4 py-8 space-y-6">
-                 <Skeleton className="h-8 w-1/4 mb-6" />
-                 <Card>
+                <Skeleton className="h-8 w-1/4 mb-6" />
+                <Card>
                     <CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader>
                     <CardContent className="space-y-4">
                         <Skeleton className="h-4 w-full" />
                         <Skeleton className="h-20 w-full" />
                         <Skeleton className="h-4 w-1/2" />
                     </CardContent>
-                 </Card>
+                </Card>
             </div>
         );
     }
 
-    if (error) {
+    if (isError) {
         return (
             <div className="container mx-auto px-4 py-8">
                 <Alert variant="destructive">
                     <AlertTitle>Error Loading Order</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertDescription>{error.message}</AlertDescription>
                 </Alert>
                 <Button variant="outline" asChild className="mt-4">
                 <Link to="/orders"><ArrowLeftIcon className="w-4 h-4 mr-2"/> Back to Orders</Link>
