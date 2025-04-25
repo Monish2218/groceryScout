@@ -5,54 +5,24 @@ import { fetchProducts } from '@/api/productsApi';
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/ProductCard";
 import { AIHelperModal } from "@/components/AIHelperModal";
-import axiosInstance from "@/api/axiosInstance";
 import { useAddToCart } from '@/queries/useCartQueries';
-
-export interface Product {
-  _id: string;
-  name: string;
-  price: number;
-  unit: string;
-  unitQuantity: number;
-  imageUrl?: string;
-}
-
-export interface MatchedItemType {
-  originalIngredientName: string;
-  originalQuantity: string;
-  matchedProduct: Product & { _id: string };
-  calculatedQuantityNeeded: number;
-  calculationNotes?: string;
-}
-
-export interface UnavailableItemType {
-  originalIngredientName: string;
-  originalQuantity: string;
-  reason: string;
-}
-
-export interface RecipeApiResponse {
-  recipeName: string;
-  servings: number;
-  matchedItems: MatchedItemType[];
-  unavailableItems: UnavailableItemType[];
-  recipeSteps: string[];
-}
+import { useProcessRecipe } from "@/queries/useRecipeQueries";
+import { RecipeApiResponse } from "@/api/recipeApi";
 
 export interface SelectionState {
   [productId: string]: {
-      selected: boolean;
-      quantity: number;
+    selected: boolean;
+    quantity: number;
   };
 }
 
 const HomePage: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoadingRecipe, setIsLoadingRecipe] = useState(false);
   const [recipeResponse, setRecipeResponse] = useState<RecipeApiResponse | null>(null);
   const [selectionState, setSelectionState] = useState<SelectionState>({});
   const [aiError, setAiError] = useState<string | null>(null);
+  const processRecipeMutation = useProcessRecipe();
   const addToCartMutation = useAddToCart();
 
   const {
@@ -68,43 +38,40 @@ const HomePage: React.FC = () => {
   const handleOpenAIHelper = useCallback(() => {
     setRecipeResponse(null);
     setSelectionState({});
-    setAiError(null);
+    processRecipeMutation.reset();
     setIsModalOpen(true);
-  }, []);
+  }, [processRecipeMutation]);
 
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
   }, []);
 
   const handleRecipeSubmit = useCallback(async (formData: { recipeName: string; servings: number }) => {
-    setIsLoadingRecipe(true);
-    setAiError(null);
     setRecipeResponse(null);
     setSelectionState({});
     console.log("Submitting recipe:", formData);
 
-    try {
-      const response = await axiosInstance.post<RecipeApiResponse>('/recipes/process', formData);
-      console.log("Recipe API Response:", response.data);
-      setRecipeResponse(response.data);
+    processRecipeMutation.mutate(formData, {
+      onSuccess: (data) => {
+        console.log("Recipe processed successfully:", data);
+        setRecipeResponse(data);
 
-      const initialSelections: SelectionState = {};
-      response.data.matchedItems.forEach(item => {
-        initialSelections[item.matchedProduct._id] = {
-          selected: true,
-          quantity: item.calculatedQuantityNeeded >= 1 ? item.calculatedQuantityNeeded : 1,
-        };
-      });
-      setSelectionState(initialSelections);
-
-    } catch (err: unknown) {
-        console.error("Failed to process recipe:", err);
-        const error = err as { response?: { data?: { message?: string } } };
-        setAiError(error.response?.data?.message ?? "Failed to process recipe.");
-    } finally {
-        setIsLoadingRecipe(false);
-    }
-  }, []);
+        const initialSelections: SelectionState = {};
+        data.matchedItems.forEach(item => {
+          initialSelections[item.matchedProduct._id] = {
+            selected: true,
+            quantity: item.calculatedQuantityNeeded >= 1 ? item.calculatedQuantityNeeded : 1,
+          };
+        });
+        setSelectionState(initialSelections);
+      },
+      onError: (error: unknown) => {
+        console.error("Error processing recipe:", error);
+        const errorResponse = error as { response?: { data?: { message?: string } } };
+        setAiError(errorResponse.response?.data?.message ?? "Failed to process recipe.");
+      }
+    });
+  }, [processRecipeMutation]);
 
   const handleItemCheckboxChange = useCallback((productId: string, isChecked: boolean) => {
     setSelectionState(prev => ({
@@ -221,7 +188,7 @@ const HomePage: React.FC = () => {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSubmitRecipe={handleRecipeSubmit}
-        isLoadingRecipe={isLoadingRecipe}
+        isLoadingRecipe={processRecipeMutation.isPending}
         recipeResponse={recipeResponse}
         selectionState={selectionState}
         onItemCheckboxChange={handleItemCheckboxChange}
