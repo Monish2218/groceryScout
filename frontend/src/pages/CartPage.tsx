@@ -1,15 +1,13 @@
 import { Trash2 } from "lucide-react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link } from "react-router-dom"
 
 import { Button } from "@/components/ui/button"
 import { CartItem } from "@/components/CartItem"
 import { CartSummary } from "@/components/CartSummary"
 import { useFetchCart, useClearCart } from '@/queries/useCartQueries';
 import { useCreateOrder } from '@/queries/useOrderQueries';
-import { Order } from "@/api/ordersApi"
 
 export function CartPage() {
-  const navigate = useNavigate();
 
   const { data: cart, isLoading: isLoadingCart, error: cartError } = useFetchCart();
   const clearCartMutation = useClearCart();
@@ -23,16 +21,7 @@ export function CartPage() {
 
   const handleCheckout = () => {
     if (!cart || cart.items.length === 0) return;
-    createOrderMutation.mutate(undefined, {
-      onSuccess: (createdOrder : Order) => {
-        alert(`Order placed successfully! Order ID: ${createdOrder._id}`);
-        navigate('/orders');
-      },
-      onError: (error: unknown) => {
-        const err = error as { message?: string };
-        alert(`Error placing order: ${err.message ?? 'Please try again'}`);
-      }
-    });
+    createOrderMutation.mutate(undefined);
   };
 
   if (isLoadingCart) {

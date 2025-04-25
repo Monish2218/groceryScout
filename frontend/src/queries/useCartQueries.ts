@@ -4,9 +4,11 @@ import {
     addItemsToCartApi,
     updateItemQuantityApi,
     removeItemApi,
-    clearCartApi
+    clearCartApi,
+    type Cart,
 } from '../api/cartApi';
 import { queryKeys } from './keys';
+import { toast } from "sonner";
 
 export const useFetchCart = () => {
     return useQuery({
@@ -20,13 +22,13 @@ export const useAddToCart = () => {
     return useMutation({
         mutationFn: addItemsToCartApi,
         onSuccess: (updatedCart) => {
-            queryClient.setQueryData(queryKeys.cart, updatedCart);
-            console.log("Item(s) added successfully via RQ mutation.");
-            // TODO: Trigger success toast
+            queryClient.setQueryData<Cart | undefined>(queryKeys.cart, updatedCart);
+            toast.success("Item(s) added to cart!");
         },
         onError: (error: unknown) => {
             console.error("Error adding item(s) to cart via RQ mutation:", error);
-            // TODO: Trigger error toast
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message ?? "Failed to add item(s).");
        }
     });
 };
@@ -41,8 +43,9 @@ export const useUpdateCartItem = () => {
         },
         onError: (error: unknown, variables) => {
             console.error(`Error updating quantity for item ${variables.productId}:`, error);
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message ?? "Failed to update quantity.");
             queryClient.invalidateQueries({ queryKey: queryKeys.cart });
-            // TODO: Trigger error toast
         }
     });
 };
@@ -54,11 +57,12 @@ export const useRemoveCartItem = () => {
         onSuccess: (updatedCart, productIdToRemove) => {
             queryClient.setQueryData(queryKeys.cart, updatedCart);
             console.log(`Item ${productIdToRemove} removed successfully.`);
-            // TODO: Trigger success toast
+            toast.success("Item removed from cart.");
         },
         onError: (error: unknown, productIdToRemove) => {
             console.error(`Error removing item ${productIdToRemove}:`, error);
-            // TODO: Trigger error toast
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message ?? "Failed to remove item.");
         }
     });
 };
@@ -69,12 +73,12 @@ export const useClearCart = () => {
         mutationFn: clearCartApi,
         onSuccess: (updatedCart) => {
             queryClient.setQueryData(queryKeys.cart, updatedCart);
-            console.log("Cart cleared successfully.");
-            // TODO: Trigger success toast
+            toast.success("Cart cleared.");
         },
         onError: (error: unknown) => {
             console.error("Error clearing cart:", error);
-            // TODO: Trigger error toast
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message ?? "Failed to clear cart.");
         }
     });
 };

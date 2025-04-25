@@ -138,7 +138,6 @@ const HomePage: React.FC = () => {
     addToCartMutation.mutate({ items: itemsToAdd }, {
       onSuccess: () => {
         setIsModalOpen(false);
-        alert(`${itemsToAdd.length} item(s) added to cart!`); 
       },
       onError: (error: unknown) => {
         const err = error as { message?: string };

@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Link, NavLink, Outlet } from "react-router-dom"
-import { Menu, ShoppingCart, User, X } from "lucide-react"
+import { Menu, ShoppingCart, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useAuth } from "@/context/AuthContext"
@@ -122,12 +122,8 @@ export default function Layout() {
               </SheetTrigger>
               <SheetContent side="left" className="w-[250px] sm:w-[300px]">
                 <div className="flex flex-col h-full">
-                  <div className="flex items-center justify-between border-b pb-4">
+                  <div className="flex items-center border-b pb-4">
                     <span className="text-lg font-bold text-emerald-600">GroceryScout</span>
-                    <Button variant="ghost" size="sm" onClick={() => setIsMenuOpen(false)}>
-                      <X className="h-5 w-5" />
-                      <span className="sr-only">Close menu</span>
-                    </Button>
                   </div>
                   <nav className="flex-1 py-4">
                     <ul className="space-y-4">
@@ -182,7 +178,7 @@ export default function Layout() {
                           Logout
                         </Button>
                         <Link to="/cart" className="mt-2 block">
-                          <Button variant="outline" size="sm" className="w-full justify-start">
+                          <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setIsMenuOpen(false)}>
                             <ShoppingCart className="mr-2 h-4 w-4" />
                             Cart
                           </Button>

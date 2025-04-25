@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
+import { toast } from 'sonner';
 
 interface User {
     _id: string;
@@ -57,6 +58,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setToken(receivedToken);
             setUser(loggedInUser);
             setIsAuthenticated(true);
+            toast.success('Login successful!');
             navigate('/');
             return true;
         } catch (err: unknown) {
@@ -85,6 +87,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setToken(receivedToken);
             setUser(newUser);
             setIsAuthenticated(true);
+            toast.success('Registration successful!');
             navigate('/');
             return true;
         } catch (err: unknown) {

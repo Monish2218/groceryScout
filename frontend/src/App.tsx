@@ -7,21 +7,25 @@ import { CartPage } from './pages/CartPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import OrdersPage from './pages/OrdersPage';
 import OrderDetailsPage from './pages/OrderDetailsPage';
+import { Toaster } from '@/components/ui/sonner';
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Layout />}>
-        <Route index element={<HomePage />} />
-        <Route element={<ProtectedRoute />}>
-          <Route path="cart" element={<CartPage/>} />
-          <Route path="orders" element={<OrdersPage />} />
-          <Route path="orders/:orderId" element={<OrderDetailsPage />} />
+    <>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<HomePage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="cart" element={<CartPage/>} />
+            <Route path="orders" element={<OrdersPage />} />
+            <Route path="orders/:orderId" element={<OrderDetailsPage />} />
+          </Route>
         </Route>
-      </Route>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-    </Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+      </Routes>
+      <Toaster position="top-right" richColors />
+    </>
   );
 }
 
